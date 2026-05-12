@@ -27,7 +27,7 @@ const suggestionSchema = z.object({
   category: z.enum(suggestionCategories, {
     error: "Choose a category.",
   }),
-  message: z.string().min(15, "Message must be at least 15 characters.").max(3000),
+  message: z.string().min(8, "Message must be at least 8 characters.").max(3000),
 })
 
 function sanitizeFileName(fileName: string) {
