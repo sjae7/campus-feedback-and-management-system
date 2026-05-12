@@ -4,6 +4,7 @@ import { hasSupabaseEnv } from "@/lib/env"
 import { createClient } from "@/lib/supabase/server"
 import type {
   AdminSuggestion,
+  DepartmentId,
   Suggestion,
   SuggestionAttachment,
   SuggestionStatus,
@@ -17,6 +18,10 @@ type StudentRelation = {
   email: string | null
   department_id: string | null
   departments?: { name: string | null } | { name: string | null }[] | null
+}
+
+type AdminSuggestionRow = Omit<AdminSuggestion, "students"> & {
+  students?: StudentRelation | StudentRelation[] | null
 }
 
 async function attachSignedUrls<T extends { suggestion_attachments?: SuggestionAttachment[] }>(
@@ -82,11 +87,38 @@ export async function getAdminSuggestions() {
     )
     .order("created_at", { ascending: false })
 
-  const suggestions = ((data ?? []) as Array<
-    Omit<AdminSuggestion, "students"> & {
-      students?: StudentRelation | StudentRelation[] | null
-    }
-  >).map((suggestion) => {
+  const suggestions = normalizeAdminSuggestions((data ?? []) as AdminSuggestionRow[])
+
+  return attachSignedUrls(suggestions)
+}
+
+export async function getAdminSuggestion(suggestionId: string) {
+  if (!hasSupabaseEnv()) {
+    return null
+  }
+
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("suggestions")
+    .select(
+      "id, user_id, title, message, category, status, created_at, updated_at, students(full_name, email, department_id, departments(name)), suggestion_attachments(id, suggestion_id, user_id, bucket, path, file_name, mime_type, size, created_at)"
+    )
+    .eq("id", suggestionId)
+    .maybeSingle()
+
+  if (!data) {
+    return null
+  }
+
+  const [suggestion] = await attachSignedUrls(
+    normalizeAdminSuggestions([data as AdminSuggestionRow])
+  )
+
+  return suggestion ?? null
+}
+
+function normalizeAdminSuggestions(rows: AdminSuggestionRow[]) {
+  return rows.map((suggestion) => {
     const student = Array.isArray(suggestion.students)
       ? suggestion.students[0]
       : suggestion.students
@@ -100,14 +132,12 @@ export async function getAdminSuggestions() {
         ? {
             full_name: student.full_name,
             email: student.email,
-            department_id: student.department_id,
+            department_id: student.department_id as DepartmentId | null,
             department_name: department?.name ?? null,
           }
         : null,
     }
   })
-
-  return attachSignedUrls(suggestions as unknown as AdminSuggestion[])
 }
 
 export function getStatusCounts(suggestions: { status: SuggestionStatus }[]) {

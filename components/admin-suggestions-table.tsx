@@ -1,11 +1,13 @@
 "use client"
 
-import { useMemo, useState, useTransition } from "react"
+import { useMemo, useState } from "react"
 import { FileTextIcon, SearchIcon } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { toast } from "sonner"
 
-import { updateSuggestionStatus } from "@/app/actions/admin"
+import {
+  AdminSuggestionStatusSelect,
+  adminStatusOptions,
+} from "@/components/admin-suggestion-status-select"
 import { StatusBadge, statusLabels } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,14 +29,9 @@ import {
 } from "@/components/ui/table"
 import { formatBytes, formatDateTime } from "@/lib/format"
 import {
-  suggestionStatuses,
   type AdminSuggestion,
   type SuggestionStatus,
 } from "@/lib/types"
-
-const adminStatusOptions = suggestionStatuses.filter(
-  (status) => status !== "resolved"
-)
 
 export function AdminSuggestionsTable({
   suggestions,
@@ -46,8 +43,6 @@ export function AdminSuggestionsTable({
   const [statusFilter, setStatusFilter] = useState<SuggestionStatus | "all">(
     "all"
   )
-  const [pendingId, setPendingId] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
 
   const filteredSuggestions = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -71,21 +66,6 @@ export function AdminSuggestionsTable({
       return matchesStatus && searchable.includes(normalizedQuery)
     })
   }, [query, statusFilter, suggestions])
-
-  function handleStatusChange(id: string, status: SuggestionStatus) {
-    setPendingId(id)
-    startTransition(async () => {
-      const result = await updateSuggestionStatus(id, status)
-      setPendingId(null)
-
-      if (result.success) {
-        toast.success(result.message)
-        router.refresh()
-      } else {
-        toast.error(result.message ?? "Status could not be updated.")
-      }
-    })
-  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -133,7 +113,21 @@ export function AdminSuggestionsTable({
           </TableHeader>
           <TableBody>
             {filteredSuggestions.map((suggestion) => (
-              <TableRow key={suggestion.id}>
+              <TableRow
+                key={suggestion.id}
+                role="link"
+                tabIndex={0}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() =>
+                  router.push(`/admin/suggestions/${suggestion.id}`)
+                }
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault()
+                    router.push(`/admin/suggestions/${suggestion.id}`)
+                  }
+                }}
+              >
                 <TableCell className="min-w-80 align-top">
                   <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
@@ -162,33 +156,19 @@ export function AdminSuggestionsTable({
                     </p>
                   </div>
                 </TableCell>
-                <TableCell className="align-top">
-                  <Select
-                    value={
-                      suggestion.status === "resolved"
-                        ? "approved"
-                        : suggestion.status
-                    }
-                    disabled={isPending && pendingId === suggestion.id}
-                    onValueChange={(value) =>
-                      handleStatusChange(suggestion.id, value as SuggestionStatus)
-                    }
-                  >
-                    <SelectTrigger className="w-36">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        {adminStatusOptions.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            {statusLabels[status]}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
+                <TableCell
+                  className="align-top"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <AdminSuggestionStatusSelect
+                    suggestionId={suggestion.id}
+                    status={suggestion.status}
+                  />
                 </TableCell>
-                <TableCell className="align-top">
+                <TableCell
+                  className="align-top"
+                  onClick={(event) => event.stopPropagation()}
+                >
                   <div className="flex flex-col gap-1">
                     {suggestion.suggestion_attachments?.length ? (
                       suggestion.suggestion_attachments.map((attachment) => (
