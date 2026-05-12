@@ -12,6 +12,7 @@ import {
 import { AdminSuggestionStatusSelect } from "@/components/admin-suggestion-status-select"
 import { AppShell } from "@/components/app-shell"
 import { ConfigurationNotice } from "@/components/configuration-notice"
+import { DeleteSuggestionButton } from "@/components/delete-suggestion-button"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -163,6 +164,20 @@ export default async function AdminSuggestionDetailPage({
                 <AdminSuggestionStatusSelect
                   suggestionId={suggestion.id}
                   status={suggestion.status}
+                />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Delete suggestion</CardTitle>
+                <CardDescription>
+                  Remove this suggestion and any uploaded attachments.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DeleteSuggestionButton
+                  suggestionId={suggestion.id}
+                  redirectToInbox
                 />
               </CardContent>
             </Card>

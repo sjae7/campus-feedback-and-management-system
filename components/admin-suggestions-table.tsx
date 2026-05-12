@@ -8,6 +8,7 @@ import {
   AdminSuggestionStatusSelect,
   adminStatusOptions,
 } from "@/components/admin-suggestion-status-select"
+import { DeleteSuggestionButton } from "@/components/delete-suggestion-button"
 import { StatusBadge, statusLabels } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -109,6 +110,7 @@ export function AdminSuggestionsTable({
               <TableHead>Status</TableHead>
               <TableHead>Attachments</TableHead>
               <TableHead className="text-right">Submitted</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -199,12 +201,18 @@ export function AdminSuggestionsTable({
                 <TableCell className="text-right align-top text-sm text-muted-foreground">
                   {formatDateTime(suggestion.created_at)}
                 </TableCell>
+                <TableCell
+                  className="text-right align-top"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <DeleteSuggestionButton suggestionId={suggestion.id} />
+                </TableCell>
               </TableRow>
             ))}
             {filteredSuggestions.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={5}
+                  colSpan={6}
                   className="h-32 text-center text-muted-foreground"
                 >
                   No suggestions match the current filters.

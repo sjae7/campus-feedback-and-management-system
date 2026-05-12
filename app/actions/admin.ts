@@ -1,12 +1,14 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { redirect } from "next/navigation"
 import { z } from "zod"
 
 import { requireAdmin } from "@/lib/auth"
 import { hasSupabaseAdminEnv, hasSupabaseEnv } from "@/lib/env"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
+import { ATTACHMENTS_BUCKET } from "@/lib/suggestions"
 import {
   departmentIds,
   suggestionStatuses,
@@ -22,6 +24,8 @@ const updateStatusSchema = z.object({
   suggestionId: z.uuid(),
   status: z.enum(suggestionStatuses),
 })
+
+const suggestionIdSchema = z.uuid()
 
 const createUserSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters.").trim(),
@@ -86,6 +90,98 @@ export async function updateSuggestionStatus(
   return {
     success: true,
     message: "Status updated.",
+  }
+}
+
+export async function deleteSuggestion(
+  suggestionId: string,
+  redirectToInbox = false
+): Promise<AdminActionState> {
+  if (!hasSupabaseEnv()) {
+    return {
+      message: "Supabase is not configured.",
+    }
+  }
+
+  if (!hasSupabaseAdminEnv()) {
+    return {
+      message: "SUPABASE_SERVICE_ROLE_KEY is required before deleting suggestions.",
+    }
+  }
+
+  const admin = await requireAdmin()
+
+  if (!admin) {
+    return {
+      message: "Only admins can delete suggestions.",
+    }
+  }
+
+  const parsed = suggestionIdSchema.safeParse(suggestionId)
+
+  if (!parsed.success) {
+    return {
+      message: "Invalid suggestion.",
+    }
+  }
+
+  const supabaseAdmin = createAdminClient()
+  const { data: attachments, error: attachmentsError } = await supabaseAdmin
+    .from("suggestion_attachments")
+    .select("bucket, path")
+    .eq("suggestion_id", parsed.data)
+
+  if (attachmentsError) {
+    return {
+      message: attachmentsError.message,
+    }
+  }
+
+  const attachmentsByBucket = new Map<string, string[]>()
+
+  for (const attachment of attachments ?? []) {
+    const bucket = attachment.bucket || ATTACHMENTS_BUCKET
+    const paths = attachmentsByBucket.get(bucket) ?? []
+    paths.push(attachment.path)
+    attachmentsByBucket.set(bucket, paths)
+  }
+
+  for (const [bucket, paths] of attachmentsByBucket.entries()) {
+    const { error: storageError } = await supabaseAdmin.storage
+      .from(bucket)
+      .remove(paths)
+
+    if (storageError) {
+      return {
+        message: storageError.message,
+      }
+    }
+  }
+
+  const { error } = await supabaseAdmin
+    .from("suggestions")
+    .delete()
+    .eq("id", parsed.data)
+
+  if (error) {
+    return {
+      message: error.message,
+    }
+  }
+
+  revalidatePath("/admin")
+  revalidatePath("/admin/suggestions")
+  revalidatePath(`/admin/suggestions/${parsed.data}`)
+  revalidatePath("/dashboard")
+  revalidatePath("/dashboard/suggestions")
+
+  if (redirectToInbox) {
+    redirect("/admin/suggestions")
+  }
+
+  return {
+    success: true,
+    message: "Suggestion deleted.",
   }
 }
 
