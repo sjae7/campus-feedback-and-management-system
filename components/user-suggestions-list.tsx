@@ -27,7 +27,7 @@ export function UserSuggestionsList({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>My suggestions</CardTitle>
+        <CardTitle>My feedback and suggestions</CardTitle>
         <CardDescription>
           Track status updates from the campus admin team.
         </CardDescription>

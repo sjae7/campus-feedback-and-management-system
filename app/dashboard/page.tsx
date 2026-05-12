@@ -112,7 +112,8 @@ export default async function DashboardPage() {
             <CardHeader>
               <CardTitle>Recent status</CardTitle>
               <CardDescription>
-                A short preview only. Open My suggestions to see everything.
+                A short preview only. Open My feedback and suggestions to see
+                everything.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">

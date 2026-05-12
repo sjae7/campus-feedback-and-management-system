@@ -54,7 +54,7 @@ const pageTitles: Record<
     description: "Send a campus idea or concern to the admin team",
   },
   "my-suggestions": {
-    title: "My suggestions",
+    title: "My feedback and suggestions",
     description: "Track admin status updates on every submission",
   },
   admin: {
@@ -129,11 +129,11 @@ export function AppShell({ children, profile, email, active }: AppShellProps) {
                     <SidebarMenuButton
                       asChild
                       isActive={active === "my-suggestions"}
-                      tooltip="My suggestions"
+                      tooltip="My feedback and suggestions"
                     >
                       <Link href="/dashboard/suggestions">
                         <ClipboardListIcon />
-                        <span>My suggestions</span>
+                        <span>My feedback and suggestions</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

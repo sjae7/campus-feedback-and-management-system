@@ -118,8 +118,8 @@ export default async function AdminPage() {
               <div className="rounded-lg border p-4">
                 <p className="font-medium">2. Approve or reject</p>
                 <p className="text-sm leading-6 text-muted-foreground">
-                  Status changes are visible to students on their My suggestions
-                  page.
+                  Status changes are visible to students on their My feedback
+                  and suggestions page.
                 </p>
               </div>
               <div className="rounded-lg border p-4">
