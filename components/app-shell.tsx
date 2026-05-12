@@ -50,7 +50,7 @@ const pageTitles: Record<
     description: "Account, suggestion totals, and next actions",
   },
   submit: {
-    title: "Submit suggestion",
+    title: "Submit feedback and suggestion",
     description: "Send a campus idea or concern to the admin team",
   },
   "my-suggestions": {
@@ -77,11 +77,11 @@ export function AppShell({ children, profile, email, active }: AppShellProps) {
 
   return (
     <SidebarProvider>
-      <Sidebar collapsible="icon">
-        <SidebarHeader>
+      <Sidebar collapsible="icon" className="[--sidebar-width:14rem]">
+        <SidebarHeader className="gap-1 p-2">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild size="lg">
+              <SidebarMenuButton asChild size="lg" className="h-10">
                 <Link href={isAdmin ? "/admin" : "/dashboard"}>
                   <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                     <LightbulbIcon />
@@ -98,12 +98,13 @@ export function AppShell({ children, profile, email, active }: AppShellProps) {
         <SidebarContent>
           {!isAdmin ? (
             <SidebarGroup>
-              <SidebarGroupLabel>Student</SidebarGroupLabel>
+              <SidebarGroupLabel className="h-6 px-2">Student</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
+                      size="sm"
                       isActive={active === "dashboard"}
                       tooltip="Overview"
                     >
@@ -116,8 +117,9 @@ export function AppShell({ children, profile, email, active }: AppShellProps) {
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
+                      size="sm"
                       isActive={active === "submit"}
-                      tooltip="Submit suggestion"
+                      tooltip="Submit feedback and suggestion"
                     >
                       <Link href="/dashboard/new">
                         <SendIcon />
@@ -128,12 +130,13 @@ export function AppShell({ children, profile, email, active }: AppShellProps) {
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
+                      size="sm"
                       isActive={active === "my-suggestions"}
                       tooltip="My feedback and suggestions"
                     >
                       <Link href="/dashboard/suggestions">
                         <ClipboardListIcon />
-                        <span>My feedback and suggestions</span>
+                        <span>Feedback</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -142,12 +145,13 @@ export function AppShell({ children, profile, email, active }: AppShellProps) {
             </SidebarGroup>
           ) : (
             <SidebarGroup>
-              <SidebarGroupLabel>Admin</SidebarGroupLabel>
+              <SidebarGroupLabel className="h-6 px-2">Admin</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
+                      size="sm"
                       isActive={active === "admin"}
                       tooltip="Admin overview"
                     >
@@ -160,6 +164,7 @@ export function AppShell({ children, profile, email, active }: AppShellProps) {
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
+                      size="sm"
                       isActive={active === "admin-suggestions"}
                       tooltip="Admin inbox"
                     >
@@ -172,6 +177,7 @@ export function AppShell({ children, profile, email, active }: AppShellProps) {
                   <SidebarMenuItem>
                     <SidebarMenuButton
                       asChild
+                      size="sm"
                       isActive={active === "admin-users"}
                       tooltip="Accounts"
                     >
@@ -187,13 +193,15 @@ export function AppShell({ children, profile, email, active }: AppShellProps) {
           )}
         </SidebarContent>
         <SidebarSeparator />
-        <SidebarFooter>
-          <div className="flex items-center gap-2 rounded-lg px-2 py-1.5">
+        <SidebarFooter className="gap-1 p-2">
+          <div className="flex items-center gap-2 rounded-lg px-1.5 py-1">
             <div className="flex size-8 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-accent-foreground">
               <ShieldCheckIcon />
             </div>
-            <div className="min-w-0 flex-1 text-sm">
-              <p className="truncate font-medium">{profile?.full_name ?? "User"}</p>
+            <div className="min-w-0 flex-1 text-xs">
+              <p className="truncate font-medium leading-5">
+                {profile?.full_name ?? "User"}
+              </p>
               <p className="truncate text-xs text-muted-foreground">
                 {email ?? (isAdmin ? "Admin" : profile?.department_name)}
               </p>

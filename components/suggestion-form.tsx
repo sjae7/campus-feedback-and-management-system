@@ -61,7 +61,7 @@ export function SuggestionForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Submit a suggestion</CardTitle>
+        <CardTitle>Submit feedback and suggestion</CardTitle>
         <CardDescription>
           Share one clear idea, issue, or improvement. You can submit another
           suggestion after this one is saved.
@@ -142,7 +142,7 @@ export function SuggestionForm() {
               ) : (
                 <SendIcon data-icon="inline-start" />
               )}
-              Submit suggestion
+              Submit feedback
             </Button>
           </FieldGroup>
         </form>

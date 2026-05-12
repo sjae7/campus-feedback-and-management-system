@@ -96,7 +96,7 @@ export default async function DashboardPage() {
                 <Button asChild>
                   <Link href="/dashboard/new">
                     <SendIcon data-icon="inline-start" />
-                    Submit suggestion
+                    Submit feedback
                   </Link>
                 </Button>
                 <Button asChild variant="outline">

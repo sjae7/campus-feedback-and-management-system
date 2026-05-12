@@ -88,7 +88,7 @@ Users:
 
 - Sign up or sign in.
 - Open `/dashboard`.
-- Submit a suggestion with title, category, message, and optional attachment.
+- Submit feedback and suggestions with title, category, message, and optional attachment.
 - Track statuses: `new`, `reviewing`, `approved`, `rejected`.
 
 Admins:

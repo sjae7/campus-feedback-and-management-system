@@ -51,7 +51,7 @@ export async function createSuggestion(
 
   if (!user) {
     return {
-      message: "You must be signed in as a student to submit a suggestion.",
+      message: "You must be signed in as a student to submit feedback.",
     }
   }
 
