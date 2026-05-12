@@ -12,6 +12,13 @@ import type {
 const ATTACHMENTS_BUCKET = "suggestion-attachments"
 const SIGNED_URL_TTL = 60 * 10
 
+type StudentRelation = {
+  full_name: string | null
+  email: string | null
+  department_id: string | null
+  departments?: { name: string | null } | { name: string | null }[] | null
+}
+
 async function attachSignedUrls<T extends { suggestion_attachments?: SuggestionAttachment[] }>(
   rows: T[]
 ) {
@@ -71,16 +78,34 @@ export async function getAdminSuggestions() {
   const { data } = await supabase
     .from("suggestions")
     .select(
-      "id, user_id, title, message, category, status, created_at, updated_at, profiles(full_name, role), suggestion_attachments(id, suggestion_id, user_id, bucket, path, file_name, mime_type, size, created_at)"
+      "id, user_id, title, message, category, status, created_at, updated_at, students(full_name, email, department_id, departments(name)), suggestion_attachments(id, suggestion_id, user_id, bucket, path, file_name, mime_type, size, created_at)"
     )
     .order("created_at", { ascending: false })
 
-  const suggestions = (data ?? []).map((suggestion) => ({
-    ...suggestion,
-    profiles: Array.isArray(suggestion.profiles)
-      ? suggestion.profiles[0] ?? null
-      : suggestion.profiles ?? null,
-  }))
+  const suggestions = ((data ?? []) as Array<
+    Omit<AdminSuggestion, "students"> & {
+      students?: StudentRelation | StudentRelation[] | null
+    }
+  >).map((suggestion) => {
+    const student = Array.isArray(suggestion.students)
+      ? suggestion.students[0]
+      : suggestion.students
+    const department = Array.isArray(student?.departments)
+      ? student.departments[0]
+      : student?.departments
+
+    return {
+      ...suggestion,
+      students: student
+        ? {
+            full_name: student.full_name,
+            email: student.email,
+            department_id: student.department_id,
+            department_name: department?.name ?? null,
+          }
+        : null,
+    }
+  })
 
   return attachSignedUrls(suggestions as unknown as AdminSuggestion[])
 }
@@ -96,6 +121,7 @@ export function getStatusCounts(suggestions: { status: SuggestionStatus }[]) {
       total: 0,
       new: 0,
       reviewing: 0,
+      approved: 0,
       resolved: 0,
       rejected: 0,
     }

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 
 import { AuthForm } from "@/components/auth-form"
 import { ConfigurationNotice } from "@/components/configuration-notice"
-import { getCurrentUser } from "@/lib/auth"
+import { getCurrentProfile, getCurrentUser } from "@/lib/auth"
 import { hasSupabaseEnv } from "@/lib/env"
 
 export default async function SignupPage() {
@@ -10,7 +10,8 @@ export default async function SignupPage() {
   const user = await getCurrentUser()
 
   if (user) {
-    redirect("/dashboard")
+    const profile = await getCurrentProfile()
+    redirect(profile?.role === "admin" ? "/admin" : "/dashboard")
   }
 
   return (

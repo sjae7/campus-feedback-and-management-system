@@ -63,7 +63,8 @@ export function SuggestionForm() {
       <CardHeader>
         <CardTitle>Submit a suggestion</CardTitle>
         <CardDescription>
-          Share one clear idea, issue, or improvement for campus review.
+          Share one clear idea, issue, or improvement. You can submit another
+          suggestion after this one is saved.
         </CardDescription>
       </CardHeader>
       <CardContent>

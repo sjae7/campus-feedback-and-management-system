@@ -1,9 +1,16 @@
 import { redirect } from "next/navigation"
+import Link from "next/link"
+import {
+  CheckCircle2Icon,
+  ClipboardListIcon,
+  MailIcon,
+  UserPlusIcon,
+} from "lucide-react"
 
-import { AdminSuggestionsTable } from "@/components/admin-suggestions-table"
 import { AppShell } from "@/components/app-shell"
 import { ConfigurationNotice } from "@/components/configuration-notice"
-import { CreateUserForm } from "@/components/create-user-form"
+import { MetricCard } from "@/components/metric-card"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -11,12 +18,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty"
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth"
 import { hasSupabaseEnv } from "@/lib/env"
 import { getAdminSuggestions, getStatusCounts } from "@/lib/suggestions"
@@ -48,54 +49,89 @@ export default async function AdminPage() {
   const counts = getStatusCounts(suggestions)
 
   return (
-    <AppShell profile={profile} active="admin">
+    <AppShell profile={profile} email={user.email} active="admin">
       <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <MetricCard label="Total" value={counts.total} />
+          <MetricCard label="Total suggestions" value={counts.total} />
           <MetricCard label="New" value={counts.new} />
           <MetricCard label="Reviewing" value={counts.reviewing} />
-          <MetricCard label="Resolved" value={counts.resolved} />
+          <MetricCard
+            label="Approved"
+            value={counts.approved + counts.resolved}
+            icon={CheckCircle2Icon}
+          />
           <MetricCard label="Rejected" value={counts.rejected} />
         </div>
-        <CreateUserForm />
-        <Card>
-          <CardHeader>
-            <CardTitle>Suggestion inbox</CardTitle>
-            <CardDescription>
-              Filter campus suggestions and update triage status.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {suggestions.length === 0 ? (
-              <Empty className="min-h-64">
-                <EmptyHeader>
-                  <EmptyTitle>No suggestions submitted</EmptyTitle>
-                  <EmptyDescription>
-                    User submissions will appear here for admin review.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            ) : (
-              <AdminSuggestionsTable suggestions={suggestions} />
-            )}
-          </CardContent>
-        </Card>
+        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+          <Card>
+            <CardHeader>
+              <CardTitle>Admin account</CardTitle>
+              <CardDescription>
+                Your admin email account and role for managing campus feedback.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-4">
+              <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
+                <div className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                  <MailIcon />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate font-medium">
+                    {profile?.full_name ?? "Admin"}
+                  </p>
+                  <p className="truncate text-sm text-muted-foreground">
+                    {user.email}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <Button asChild>
+                  <Link href="/admin/suggestions">
+                    <ClipboardListIcon data-icon="inline-start" />
+                    Open inbox
+                  </Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href="/admin/users">
+                    <UserPlusIcon data-icon="inline-start" />
+                    Create account
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Admin workflow</CardTitle>
+              <CardDescription>
+                Keep review work separated from account creation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3">
+              <div className="rounded-lg border p-4">
+                <p className="font-medium">1. Review suggestions</p>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Use Admin inbox for search, filtering, attachments, and status
+                  updates.
+                </p>
+              </div>
+              <div className="rounded-lg border p-4">
+                <p className="font-medium">2. Approve or reject</p>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Status changes are visible to students on their My suggestions
+                  page.
+                </p>
+              </div>
+              <div className="rounded-lg border p-4">
+                <p className="font-medium">3. Create accounts separately</p>
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Add student or admin email accounts from the Accounts page.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </main>
     </AppShell>
-  )
-}
-
-function MetricCard({ label, value }: { label: string; value: number }) {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {label}
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-3xl font-semibold">{value}</p>
-      </CardContent>
-    </Card>
   )
 }

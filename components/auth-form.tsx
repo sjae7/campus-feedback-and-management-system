@@ -26,7 +26,16 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Spinner } from "@/components/ui/spinner"
+import { departments } from "@/lib/types"
 
 const initialState: AuthActionState = {}
 
@@ -61,19 +70,49 @@ export function AuthForm({ mode, isConfigured }: AuthFormProps) {
         <form action={formAction}>
           <FieldGroup>
             {!isLogin ? (
-              <Field data-invalid={Boolean(state.errors?.fullName)}>
-                <FieldLabel htmlFor="fullName">Full name</FieldLabel>
-                <Input
-                  id="fullName"
-                  name="fullName"
-                  autoComplete="name"
-                  aria-invalid={Boolean(state.errors?.fullName)}
-                  disabled={!isConfigured || pending}
-                />
-                <FieldError
-                  errors={state.errors?.fullName?.map((message) => ({ message }))}
-                />
-              </Field>
+              <>
+                <Field data-invalid={Boolean(state.errors?.fullName)}>
+                  <FieldLabel htmlFor="fullName">Full name</FieldLabel>
+                  <Input
+                    id="fullName"
+                    name="fullName"
+                    autoComplete="name"
+                    aria-invalid={Boolean(state.errors?.fullName)}
+                    disabled={!isConfigured || pending}
+                  />
+                  <FieldError
+                    errors={state.errors?.fullName?.map((message) => ({
+                      message,
+                    }))}
+                  />
+                </Field>
+                <Field data-invalid={Boolean(state.errors?.department)}>
+                  <FieldLabel htmlFor="department">Department</FieldLabel>
+                  <Select name="department" disabled={!isConfigured || pending}>
+                    <SelectTrigger
+                      id="department"
+                      className="w-full"
+                      aria-invalid={Boolean(state.errors?.department)}
+                    >
+                      <SelectValue placeholder="Choose your department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {departments.map((department) => (
+                          <SelectItem key={department.id} value={department.id}>
+                            {department.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FieldError
+                    errors={state.errors?.department?.map((message) => ({
+                      message,
+                    }))}
+                  />
+                </Field>
+              </>
             ) : null}
             <Field data-invalid={Boolean(state.errors?.email)}>
               <FieldLabel htmlFor="email">Email</FieldLabel>

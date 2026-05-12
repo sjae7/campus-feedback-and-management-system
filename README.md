@@ -28,6 +28,10 @@ SUPABASE_DB_URL=your-supabase-postgres-connection-string
 DEFAULT_ADMIN_EMAIL=admin@example.com
 DEFAULT_ADMIN_PASSWORD=change-this-password
 DEFAULT_ADMIN_FULL_NAME=System Admin
+DEFAULT_STUDENT_EMAIL=student@example.com
+DEFAULT_STUDENT_PASSWORD=student-password
+DEFAULT_STUDENT_FULL_NAME=Sample Student
+DEFAULT_STUDENT_DEPARTMENT_ID=computer-studies
 ```
 
 Create the database tables and policies:
@@ -38,12 +42,24 @@ npm run db:setup
 
 This runs `supabase/schema.sql` and creates:
 
-- `profiles`
+- `departments`
+- `students`
+- `admins`
 - `suggestions`
 - `suggestion_attachments`
 - private `suggestion-attachments` storage bucket
 - RLS policies for users and admins
-- trigger to create a profile after signup
+- trigger to create a student or admin row after account creation
+
+To drop the old tables, recreate the schema, and seed one admin plus one
+student account:
+
+```bash
+npm run db:reset
+```
+
+This is destructive. It removes the app tables, attachment storage objects, and
+seed users matching the configured seed emails before recreating them.
 
 Create the first admin account:
 
@@ -62,6 +78,10 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+Build commands do not run database setup, reset, or seed scripts. Those scripts
+are kept separate under `scripts/` and must be run manually with `npm run
+db:setup`, `npm run db:reset`, or `npm run seed:admin`.
+
 ## Workflows
 
 Users:
@@ -69,13 +89,13 @@ Users:
 - Sign up or sign in.
 - Open `/dashboard`.
 - Submit a suggestion with title, category, message, and optional attachment.
-- Track statuses: `new`, `reviewing`, `resolved`, `rejected`.
+- Track statuses: `new`, `reviewing`, `approved`, `rejected`.
 
 Admins:
 
 - Create the first admin with `npm run seed:admin`.
 - Open `/admin`.
-- Create user accounts with email and temporary password.
+- Create student or admin accounts with email and temporary password.
 - Search and filter all suggestions.
 - Update suggestion status.
 - Open private attachments through short-lived signed URLs.
@@ -88,6 +108,7 @@ npm run lint
 npm run build
 npm run start
 npm run db:setup
+npm run db:reset
 npm run seed:admin
 ```
 

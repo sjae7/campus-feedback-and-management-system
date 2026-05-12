@@ -21,7 +21,7 @@ const client = new pg.Client({
 try {
   await client.connect()
   await client.query(schema)
-  console.log("Supabase database tables, policies, and storage bucket are ready.")
+  console.log("Supabase departments, account tables, policies, and storage bucket are ready.")
 } catch (error) {
   console.error(error instanceof Error ? error.message : error)
   process.exitCode = 1

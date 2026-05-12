@@ -6,11 +6,13 @@ import { z } from "zod"
 
 import { hasSupabaseEnv } from "@/lib/env"
 import { createClient } from "@/lib/supabase/server"
+import { departmentIds } from "@/lib/types"
 
 export type AuthActionState = {
   message?: string
   errors?: {
     fullName?: string[]
+    department?: string[]
     email?: string[]
     password?: string[]
   }
@@ -23,6 +25,9 @@ const emailPasswordSchema = z.object({
 
 const signupSchema = emailPasswordSchema.extend({
   fullName: z.string().min(2, "Name must be at least 2 characters.").trim(),
+  department: z.enum(departmentIds, {
+    error: "Choose a department.",
+  }),
 })
 
 export async function login(
@@ -56,7 +61,14 @@ export async function login(
   }
 
   revalidatePath("/", "layout")
-  redirect("/dashboard")
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const { data: admin } = user
+    ? await supabase.from("admins").select("id").eq("id", user.id).maybeSingle()
+    : { data: null }
+
+  redirect(admin ? "/admin" : "/dashboard")
 }
 
 export async function signup(
@@ -71,6 +83,7 @@ export async function signup(
 
   const parsed = signupSchema.safeParse({
     fullName: formData.get("fullName"),
+    department: formData.get("department"),
     email: formData.get("email"),
     password: formData.get("password"),
   })
@@ -88,6 +101,8 @@ export async function signup(
     options: {
       data: {
         full_name: parsed.data.fullName,
+        role: "student",
+        department_id: parsed.data.department,
       },
     },
   })
@@ -99,10 +114,11 @@ export async function signup(
   }
 
   if (data.user) {
-    await supabase.from("profiles").upsert({
+    await supabase.from("students").upsert({
       id: data.user.id,
       full_name: parsed.data.fullName,
-      role: "user",
+      email: parsed.data.email,
+      department_id: parsed.data.department,
     })
   }
 

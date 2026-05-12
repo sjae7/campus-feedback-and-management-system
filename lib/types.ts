@@ -1,6 +1,7 @@
 export const suggestionStatuses = [
   "new",
   "reviewing",
+  "approved",
   "resolved",
   "rejected",
 ] as const
@@ -14,13 +15,49 @@ export const suggestionCategories = [
   "Other",
 ] as const
 
+export const departments = [
+  {
+    id: "computer-studies",
+    name: "Computer Studies Department",
+  },
+  {
+    id: "engineering",
+    name: "Engineering Department",
+  },
+  {
+    id: "technology",
+    name: "Technology Department",
+  },
+  {
+    id: "entrepreneurship",
+    name: "Entrepreneurship Department",
+  },
+  {
+    id: "teacher-education",
+    name: "Teacher Education Department",
+  },
+  {
+    id: "nursing",
+    name: "Nursing Department",
+  },
+] as const
+
+export type DepartmentId = (typeof departments)[number]["id"]
+
+export const departmentIds = departments.map(
+  (department) => department.id
+) as [DepartmentId, ...DepartmentId[]]
+
 export type SuggestionStatus = (typeof suggestionStatuses)[number]
 export type SuggestionCategory = (typeof suggestionCategories)[number]
 
 export type Profile = {
   id: string
   full_name: string | null
-  role: "user" | "admin"
+  email: string | null
+  department_id: DepartmentId | null
+  department_name: string | null
+  role: "student" | "admin"
   created_at: string
   updated_at: string
 }
@@ -51,5 +88,7 @@ export type Suggestion = {
 }
 
 export type AdminSuggestion = Suggestion & {
-  profiles?: Pick<Profile, "full_name" | "role"> | null
+  students?:
+    | Pick<Profile, "full_name" | "email" | "department_id" | "department_name">
+    | null
 }

@@ -32,6 +32,10 @@ import {
   type SuggestionStatus,
 } from "@/lib/types"
 
+const adminStatusOptions = suggestionStatuses.filter(
+  (status) => status !== "resolved"
+)
+
 export function AdminSuggestionsTable({
   suggestions,
 }: {
@@ -50,12 +54,16 @@ export function AdminSuggestionsTable({
 
     return suggestions.filter((suggestion) => {
       const matchesStatus =
-        statusFilter === "all" || suggestion.status === statusFilter
+        statusFilter === "all" ||
+        suggestion.status === statusFilter ||
+        (statusFilter === "approved" && suggestion.status === "resolved")
       const searchable = [
         suggestion.title,
         suggestion.message,
         suggestion.category,
-        suggestion.profiles?.full_name ?? "",
+        suggestion.students?.full_name ?? "",
+        suggestion.students?.email ?? "",
+        suggestion.students?.department_name ?? "",
       ]
         .join(" ")
         .toLowerCase()
@@ -103,7 +111,7 @@ export function AdminSuggestionsTable({
           <SelectContent>
             <SelectGroup>
               <SelectItem value="all">All statuses</SelectItem>
-              {suggestionStatuses.map((status) => (
+              {adminStatusOptions.map((status) => (
                 <SelectItem key={status} value={status}>
                   {statusLabels[status]}
                 </SelectItem>
@@ -141,11 +149,26 @@ export function AdminSuggestionsTable({
                   </div>
                 </TableCell>
                 <TableCell className="align-top">
-                  {suggestion.profiles?.full_name ?? "Unknown user"}
+                  <div className="min-w-40">
+                    <p className="font-medium">
+                      {suggestion.students?.full_name ?? "Unknown student"}
+                    </p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {suggestion.students?.email ?? "No email on profile"}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {suggestion.students?.department_name ??
+                        "No department on profile"}
+                    </p>
+                  </div>
                 </TableCell>
                 <TableCell className="align-top">
                   <Select
-                    value={suggestion.status}
+                    value={
+                      suggestion.status === "resolved"
+                        ? "approved"
+                        : suggestion.status
+                    }
                     disabled={isPending && pendingId === suggestion.id}
                     onValueChange={(value) =>
                       handleStatusChange(suggestion.id, value as SuggestionStatus)
@@ -156,7 +179,7 @@ export function AdminSuggestionsTable({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
-                        {suggestionStatuses.map((status) => (
+                        {adminStatusOptions.map((status) => (
                           <SelectItem key={status} value={status}>
                             {statusLabels[status]}
                           </SelectItem>

@@ -7,7 +7,11 @@ import { requireAdmin } from "@/lib/auth"
 import { hasSupabaseAdminEnv, hasSupabaseEnv } from "@/lib/env"
 import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
-import { suggestionStatuses, type SuggestionStatus } from "@/lib/types"
+import {
+  departmentIds,
+  suggestionStatuses,
+  type SuggestionStatus,
+} from "@/lib/types"
 
 export type AdminActionState = {
   message?: string
@@ -23,8 +27,15 @@ const createUserSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters.").trim(),
   email: z.email("Enter a valid email address.").trim(),
   password: z.string().min(8, "Password must be at least 8 characters."),
-  role: z.enum(["user", "admin"]),
-})
+  role: z.enum(["student", "admin"]),
+  department: z.enum(departmentIds).optional(),
+}).refine(
+  (value) => value.role === "admin" || Boolean(value.department),
+  {
+    message: "Choose a department for student accounts.",
+    path: ["department"],
+  }
+)
 
 export async function updateSuggestionStatus(
   suggestionId: string,
@@ -68,6 +79,9 @@ export async function updateSuggestionStatus(
   }
 
   revalidatePath("/admin")
+  revalidatePath("/admin/suggestions")
+  revalidatePath("/dashboard")
+  revalidatePath("/dashboard/suggestions")
 
   return {
     success: true,
@@ -104,7 +118,8 @@ export async function createManagedUser(
     fullName: formData.get("fullName"),
     email: formData.get("email"),
     password: formData.get("password"),
-    role: formData.get("role") ?? "user",
+    role: formData.get("role") ?? "student",
+    department: formData.get("department") || undefined,
   })
 
   if (!parsed.success) {
@@ -120,6 +135,8 @@ export async function createManagedUser(
     email_confirm: true,
     user_metadata: {
       full_name: parsed.data.fullName,
+      role: parsed.data.role,
+      department_id: parsed.data.department,
     },
   })
 
@@ -129,22 +146,31 @@ export async function createManagedUser(
     }
   }
 
-  const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
-    id: data.user.id,
-    full_name: parsed.data.fullName,
-    role: parsed.data.role,
-  })
+  const { error: profileError } =
+    parsed.data.role === "admin"
+      ? await supabaseAdmin.from("admins").upsert({
+          id: data.user.id,
+          full_name: parsed.data.fullName,
+          email: parsed.data.email,
+        })
+      : await supabaseAdmin.from("students").upsert({
+          id: data.user.id,
+          full_name: parsed.data.fullName,
+          email: parsed.data.email,
+          department_id: parsed.data.department,
+        })
 
   if (profileError) {
     return {
-      message: `Auth account created, but profile setup failed: ${profileError.message}`,
+      message: `Auth account created, but account table setup failed: ${profileError.message}`,
     }
   }
 
   revalidatePath("/admin")
+  revalidatePath("/admin/users")
 
   return {
     success: true,
-    message: `${parsed.data.role === "admin" ? "Admin" : "User"} account created.`,
+    message: `${parsed.data.role === "admin" ? "Admin" : "Student"} account created.`,
   }
 }

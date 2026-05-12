@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
-import { requireUser } from "@/lib/auth"
+import { requireStudent } from "@/lib/auth"
 import { hasSupabaseEnv } from "@/lib/env"
 import { createClient } from "@/lib/supabase/server"
 import { ATTACHMENTS_BUCKET } from "@/lib/suggestions"
@@ -47,11 +47,11 @@ export async function createSuggestion(
     }
   }
 
-  const user = await requireUser()
+  const user = await requireStudent()
 
   if (!user) {
     return {
-      message: "You must be signed in to submit a suggestion.",
+      message: "You must be signed in as a student to submit a suggestion.",
     }
   }
 
@@ -132,6 +132,7 @@ export async function createSuggestion(
   }
 
   revalidatePath("/dashboard")
+  revalidatePath("/dashboard/suggestions")
 
   return {
     success: true,

@@ -4,7 +4,8 @@ import type { SuggestionStatus } from "@/lib/types"
 const statusLabels: Record<SuggestionStatus, string> = {
   new: "New",
   reviewing: "Reviewing",
-  resolved: "Resolved",
+  approved: "Approved",
+  resolved: "Approved",
   rejected: "Rejected",
 }
 
@@ -14,6 +15,7 @@ const statusVariants: Record<
 > = {
   new: "default",
   reviewing: "secondary",
+  approved: "outline",
   resolved: "outline",
   rejected: "destructive",
 }

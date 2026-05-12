@@ -31,6 +31,7 @@ const { data, error } = await supabaseAdmin.auth.admin.createUser({
   email_confirm: true,
   user_metadata: {
     full_name: fullName,
+    role: "admin",
   },
 })
 
@@ -39,10 +40,10 @@ if (error) {
   process.exit(1)
 }
 
-const { error: profileError } = await supabaseAdmin.from("profiles").upsert({
+const { error: profileError } = await supabaseAdmin.from("admins").upsert({
   id: data.user.id,
   full_name: fullName,
-  role: "admin",
+  email,
 })
 
 if (profileError) {

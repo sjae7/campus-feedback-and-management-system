@@ -37,12 +37,12 @@ export default function Home() {
             <div className="flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg">
                 <Link href="/dashboard">
-                  Open dashboard
+                  Student dashboard
                   <ArrowRightIcon data-icon="inline-end" />
                 </Link>
               </Button>
               <Button asChild variant="outline" size="lg">
-                <Link href="/login">Sign in</Link>
+                <Link href="/admin">Admin dashboard</Link>
               </Button>
             </div>
             {!isConfigured ? <ConfigurationNotice /> : null}
