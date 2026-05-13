@@ -1,15 +1,10 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
-import {
-  CheckCircle2Icon,
-  ClipboardListIcon,
-  MailIcon,
-  UserPlusIcon,
-} from "lucide-react"
+import { ClipboardListIcon, MailIcon, UserPlusIcon } from "lucide-react"
 
 import { AppShell } from "@/components/app-shell"
 import { ConfigurationNotice } from "@/components/configuration-notice"
-import { MetricCard } from "@/components/metric-card"
+import { AdminMetricCardGrid } from "@/components/metric-card-grid"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -20,7 +15,7 @@ import {
 } from "@/components/ui/card"
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth"
 import { hasSupabaseEnv } from "@/lib/env"
-import { getAdminSuggestions, getStatusCounts } from "@/lib/suggestions"
+import { getAdminSuggestionCounts } from "@/lib/suggestions"
 
 export default async function AdminPage() {
   const isConfigured = hasSupabaseEnv()
@@ -45,23 +40,12 @@ export default async function AdminPage() {
     redirect("/dashboard")
   }
 
-  const suggestions = await getAdminSuggestions()
-  const counts = getStatusCounts(suggestions)
+  const counts = await getAdminSuggestionCounts()
 
   return (
     <AppShell profile={profile} email={user.email} active="admin">
       <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <MetricCard label="Total suggestions" value={counts.total} />
-          <MetricCard label="New" value={counts.new} />
-          <MetricCard label="Reviewing" value={counts.reviewing} />
-          <MetricCard
-            label="Approved"
-            value={counts.approved + counts.resolved}
-            icon={CheckCircle2Icon}
-          />
-          <MetricCard label="Rejected" value={counts.rejected} />
-        </div>
+        <AdminMetricCardGrid counts={counts} />
         <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
           <Card>
             <CardHeader>

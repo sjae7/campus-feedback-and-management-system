@@ -1,16 +1,14 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import {
-  CheckCircle2Icon,
   ClipboardListIcon,
-  Clock3Icon,
   MailIcon,
   SendIcon,
 } from "lucide-react"
 
 import { AppShell } from "@/components/app-shell"
 import { ConfigurationNotice } from "@/components/configuration-notice"
-import { MetricCard } from "@/components/metric-card"
+import { StudentMetricCardGrid } from "@/components/metric-card-grid"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,7 +20,7 @@ import {
 } from "@/components/ui/card"
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth"
 import { hasSupabaseEnv } from "@/lib/env"
-import { getStatusCounts, getUserSuggestions } from "@/lib/suggestions"
+import { getUserSuggestionDashboard } from "@/lib/suggestions"
 import { formatDateTime } from "@/lib/format"
 
 export default async function DashboardPage() {
@@ -42,31 +40,18 @@ export default async function DashboardPage() {
     redirect("/login")
   }
 
-  const [profile, suggestions] = await Promise.all([
-    getCurrentProfile(),
-    getUserSuggestions(user.id),
-  ])
+  const profile = await getCurrentProfile()
 
   if (profile?.role === "admin") {
     redirect("/admin")
   }
 
-  const counts = getStatusCounts(suggestions)
-  const recentSuggestions = suggestions.slice(0, 3)
+  const { counts, recentSuggestions } = await getUserSuggestionDashboard(user.id)
 
   return (
     <AppShell profile={profile} email={user.email} active="dashboard">
       <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Total suggestions" value={counts.total} />
-          <MetricCard label="New" value={counts.new} icon={Clock3Icon} />
-          <MetricCard label="Reviewing" value={counts.reviewing} />
-          <MetricCard
-            label="Approved"
-            value={counts.approved + counts.resolved}
-            icon={CheckCircle2Icon}
-          />
-        </div>
+        <StudentMetricCardGrid counts={counts} />
         <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
           <Card>
             <CardHeader>

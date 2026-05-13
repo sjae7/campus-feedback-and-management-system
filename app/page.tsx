@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/card"
 import { hasSupabaseEnv } from "@/lib/env"
 
+export const dynamic = "force-static"
+
 const creators = [
   "Andrea Faye S. Baldemoro",
   "Sheren Joy A. Broñosa",
@@ -45,6 +47,12 @@ const workflow = [
     icon: CheckCircle2Icon,
   },
 ]
+
+const adminPreviewSuggestions = [
+  ["Library tables", "Facilities", "Approved"],
+  ["Campus Wi-Fi", "Technology", "Reviewing"],
+  ["Clinic queue", "Student Services", "New"],
+] as const
 
 export default function Home() {
   const isConfigured = hasSupabaseEnv()
@@ -133,11 +141,7 @@ export default function Home() {
                 </div>
                 <div className="grid gap-3 pt-3 md:grid-cols-[1fr_15rem]">
                   <div className="flex flex-col gap-3">
-                    {[
-                      ["Library tables", "Facilities", "Approved"],
-                      ["Campus Wi-Fi", "Technology", "Reviewing"],
-                      ["Clinic queue", "Student Services", "New"],
-                    ].map(([title, category, status]) => (
+                    {adminPreviewSuggestions.map(([title, category, status]) => (
                       <div
                         key={title}
                         className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_auto]"

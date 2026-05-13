@@ -50,6 +50,7 @@ export const departmentIds = departments.map(
 
 export type SuggestionStatus = (typeof suggestionStatuses)[number]
 export type SuggestionCategory = (typeof suggestionCategories)[number]
+export type StatusCounts = Record<"total" | SuggestionStatus, number>
 
 export type Profile = {
   id: string

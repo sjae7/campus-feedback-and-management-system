@@ -7,8 +7,10 @@ import type {
   DepartmentId,
   Suggestion,
   SuggestionAttachment,
+  StatusCounts,
   SuggestionStatus,
 } from "@/lib/types"
+import { suggestionStatuses } from "@/lib/types"
 
 const ATTACHMENTS_BUCKET = "suggestion-attachments"
 const SIGNED_URL_TTL = 60 * 10
@@ -22,6 +24,22 @@ type StudentRelation = {
 
 type AdminSuggestionRow = Omit<AdminSuggestion, "students"> & {
   students?: StudentRelation | StudentRelation[] | null
+}
+
+type SuggestionPreview = Pick<
+  Suggestion,
+  "id" | "title" | "category" | "status" | "created_at"
+>
+
+function createEmptyStatusCounts(): StatusCounts {
+  return {
+    total: 0,
+    new: 0,
+    reviewing: 0,
+    approved: 0,
+    resolved: 0,
+    rejected: 0,
+  }
 }
 
 async function attachSignedUrls<T extends { suggestion_attachments?: SuggestionAttachment[] }>(
@@ -74,6 +92,57 @@ export async function getUserSuggestions(userId: string) {
   return attachSignedUrls((data ?? []) as Suggestion[])
 }
 
+export async function getUserSuggestionDashboard(userId: string): Promise<{
+  counts: StatusCounts
+  recentSuggestions: SuggestionPreview[]
+}> {
+  const emptyDashboard = {
+    counts: createEmptyStatusCounts(),
+    recentSuggestions: [],
+  }
+
+  if (!hasSupabaseEnv()) {
+    return emptyDashboard
+  }
+
+  const supabase = await createClient()
+  const countStatus = async (status: SuggestionStatus) => {
+    const { count } = await supabase
+      .from("suggestions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("status", status)
+
+    return [status, count ?? 0] as const
+  }
+
+  const [totalResult, statusResults, recentResult] = await Promise.all([
+    supabase
+      .from("suggestions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId),
+    Promise.all(suggestionStatuses.map(countStatus)),
+    supabase
+      .from("suggestions")
+      .select("id, title, category, status, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(3),
+  ])
+
+  const counts = createEmptyStatusCounts()
+  counts.total = totalResult.count ?? 0
+
+  for (const [status, count] of statusResults) {
+    counts[status] = count
+  }
+
+  return {
+    counts,
+    recentSuggestions: (recentResult.data ?? []) as SuggestionPreview[],
+  }
+}
+
 export async function getAdminSuggestions() {
   if (!hasSupabaseEnv()) {
     return []
@@ -90,6 +159,36 @@ export async function getAdminSuggestions() {
   const suggestions = normalizeAdminSuggestions((data ?? []) as AdminSuggestionRow[])
 
   return attachSignedUrls(suggestions)
+}
+
+export async function getAdminSuggestionCounts(): Promise<StatusCounts> {
+  if (!hasSupabaseEnv()) {
+    return createEmptyStatusCounts()
+  }
+
+  const supabase = await createClient()
+  const countStatus = async (status: SuggestionStatus) => {
+    const { count } = await supabase
+      .from("suggestions")
+      .select("id", { count: "exact", head: true })
+      .eq("status", status)
+
+    return [status, count ?? 0] as const
+  }
+
+  const [totalResult, statusResults] = await Promise.all([
+    supabase.from("suggestions").select("id", { count: "exact", head: true }),
+    Promise.all(suggestionStatuses.map(countStatus)),
+  ])
+
+  const counts = createEmptyStatusCounts()
+  counts.total = totalResult.count ?? 0
+
+  for (const [status, count] of statusResults) {
+    counts[status] = count
+  }
+
+  return counts
 }
 
 export async function getAdminSuggestion(suggestionId: string) {
@@ -140,21 +239,16 @@ function normalizeAdminSuggestions(rows: AdminSuggestionRow[]) {
   })
 }
 
-export function getStatusCounts(suggestions: { status: SuggestionStatus }[]) {
+export function getStatusCounts(
+  suggestions: { status: SuggestionStatus }[]
+): StatusCounts {
   return suggestions.reduce(
     (counts, suggestion) => {
       counts[suggestion.status] += 1
       counts.total += 1
       return counts
     },
-    {
-      total: 0,
-      new: 0,
-      reviewing: 0,
-      approved: 0,
-      resolved: 0,
-      rejected: 0,
-    }
+    createEmptyStatusCounts()
   )
 }
 

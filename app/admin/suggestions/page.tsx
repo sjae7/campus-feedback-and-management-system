@@ -1,10 +1,9 @@
 import { redirect } from "next/navigation"
-import { CheckCircle2Icon } from "lucide-react"
 
 import { AdminSuggestionsTable } from "@/components/admin-suggestions-table"
 import { AppShell } from "@/components/app-shell"
 import { ConfigurationNotice } from "@/components/configuration-notice"
-import { MetricCard } from "@/components/metric-card"
+import { AdminMetricCardGrid } from "@/components/metric-card-grid"
 import {
   Card,
   CardContent,
@@ -51,17 +50,7 @@ export default async function AdminSuggestionsPage() {
   return (
     <AppShell profile={profile} email={user.email} active="admin-suggestions">
       <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <MetricCard label="Total suggestions" value={counts.total} />
-          <MetricCard label="New" value={counts.new} />
-          <MetricCard label="Reviewing" value={counts.reviewing} />
-          <MetricCard
-            label="Approved"
-            value={counts.approved + counts.resolved}
-            icon={CheckCircle2Icon}
-          />
-          <MetricCard label="Rejected" value={counts.rejected} />
-        </div>
+        <AdminMetricCardGrid counts={counts} />
         <Card>
           <CardHeader>
             <CardTitle>Suggestion inbox</CardTitle>

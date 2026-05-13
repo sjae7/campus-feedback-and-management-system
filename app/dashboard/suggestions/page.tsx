@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation"
-import { CheckCircle2Icon, Clock3Icon } from "lucide-react"
 
 import { AppShell } from "@/components/app-shell"
 import { ConfigurationNotice } from "@/components/configuration-notice"
-import { MetricCard } from "@/components/metric-card"
+import { StudentMetricCardGrid } from "@/components/metric-card-grid"
 import { UserSuggestionsList } from "@/components/user-suggestions-list"
 import { getCurrentProfile, getCurrentUser } from "@/lib/auth"
 import { hasSupabaseEnv } from "@/lib/env"
@@ -40,16 +39,7 @@ export default async function MySuggestionsPage() {
   return (
     <AppShell profile={profile} email={user.email} active="my-suggestions">
       <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Total suggestions" value={counts.total} />
-          <MetricCard label="New" value={counts.new} icon={Clock3Icon} />
-          <MetricCard label="Reviewing" value={counts.reviewing} />
-          <MetricCard
-            label="Approved"
-            value={counts.approved + counts.resolved}
-            icon={CheckCircle2Icon}
-          />
-        </div>
+        <StudentMetricCardGrid counts={counts} />
         <UserSuggestionsList suggestions={suggestions} />
       </main>
     </AppShell>
