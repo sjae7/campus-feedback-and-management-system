@@ -27,11 +27,19 @@ values
   ('engineering', 'Engineering Department'),
   ('technology', 'Technology Department'),
   ('entrepreneurship', 'Entrepreneurship Department'),
-  ('teacher-education', 'Teacher Education Department'),
   ('nursing', 'Nursing Department')
 on conflict (id) do update set name = excluded.name;
 
 create table if not exists public.students (
+  id uuid primary key references auth.users(id) on delete cascade,
+  full_name text,
+  email text unique,
+  department_id text not null references public.departments(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.teachers (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name text,
   email text unique,
@@ -50,19 +58,23 @@ create table if not exists public.admins (
 
 create table if not exists public.suggestions (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.students(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
   title text not null check (char_length(title) between 5 and 120),
   message text not null check (char_length(message) between 15 and 3000),
   category text not null,
   status public.suggestion_status not null default 'new',
+  rejection_reason text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
+alter table public.suggestions
+add column if not exists rejection_reason text;
+
 create table if not exists public.suggestion_attachments (
   id uuid primary key default gen_random_uuid(),
   suggestion_id uuid not null references public.suggestions(id) on delete cascade,
-  user_id uuid not null references public.students(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
   bucket text not null default 'suggestion-attachments',
   path text not null unique,
   file_name text not null,
@@ -71,13 +83,23 @@ create table if not exists public.suggestion_attachments (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.suggestion_teacher_supports (
+  suggestion_id uuid not null references public.suggestions(id) on delete cascade,
+  teacher_id uuid not null references public.teachers(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (suggestion_id, teacher_id)
+);
+
 create index if not exists students_department_id_idx on public.students(department_id);
 create index if not exists students_email_idx on public.students(email);
+create index if not exists teachers_department_id_idx on public.teachers(department_id);
+create index if not exists teachers_email_idx on public.teachers(email);
 create index if not exists admins_email_idx on public.admins(email);
 create index if not exists suggestions_user_id_created_at_idx on public.suggestions(user_id, created_at desc);
 create index if not exists suggestions_status_created_at_idx on public.suggestions(status, created_at desc);
 create index if not exists suggestion_attachments_suggestion_id_idx on public.suggestion_attachments(suggestion_id);
 create index if not exists suggestion_attachments_user_id_idx on public.suggestion_attachments(user_id);
+create index if not exists suggestion_teacher_supports_teacher_id_idx on public.suggestion_teacher_supports(teacher_id);
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -92,6 +114,11 @@ $$;
 drop trigger if exists set_students_updated_at on public.students;
 create trigger set_students_updated_at
 before update on public.students
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_teachers_updated_at on public.teachers;
+create trigger set_teachers_updated_at
+before update on public.teachers
 for each row execute function public.set_updated_at();
 
 drop trigger if exists set_admins_updated_at on public.admins;
@@ -124,6 +151,18 @@ begin
     on conflict (id) do update set
       full_name = excluded.full_name,
       email = excluded.email;
+  elsif account_role = 'teacher' then
+    insert into public.teachers (id, full_name, email, department_id)
+    values (
+      new.id,
+      coalesce(new.raw_user_meta_data ->> 'full_name', new.email),
+      new.email,
+      department
+    )
+    on conflict (id) do update set
+      full_name = excluded.full_name,
+      email = excluded.email,
+      department_id = excluded.department_id;
   else
     insert into public.students (id, full_name, email, department_id)
     values (
@@ -161,11 +200,52 @@ as $$
   );
 $$;
 
+create or replace function public.current_student_department_id()
+returns text
+stable
+security definer
+set search_path = public
+language sql
+as $$
+  select department_id
+  from public.students
+  where id = auth.uid()
+  limit 1;
+$$;
+
+create or replace function public.current_teacher_department_id()
+returns text
+stable
+security definer
+set search_path = public
+language sql
+as $$
+  select department_id
+  from public.teachers
+  where id = auth.uid()
+  limit 1;
+$$;
+
+create or replace function public.student_department_id(student_id uuid)
+returns text
+stable
+security definer
+set search_path = public
+language sql
+as $$
+  select department_id
+  from public.students
+  where id = student_id
+  limit 1;
+$$;
+
 alter table public.departments enable row level security;
 alter table public.students enable row level security;
+alter table public.teachers enable row level security;
 alter table public.admins enable row level security;
 alter table public.suggestions enable row level security;
 alter table public.suggestion_attachments enable row level security;
+alter table public.suggestion_teacher_supports enable row level security;
 
 drop policy if exists "Departments are readable" on public.departments;
 create policy "Departments are readable"
@@ -177,7 +257,11 @@ drop policy if exists "Students can read own profile and admins can read all" on
 create policy "Students can read own profile and admins can read all"
 on public.students for select
 to authenticated
-using (id = auth.uid() or public.is_admin());
+using (
+  id = auth.uid()
+  or public.is_admin()
+  or department_id = public.current_teacher_department_id()
+);
 
 drop policy if exists "Students can insert own profile" on public.students;
 create policy "Students can insert own profile"
@@ -192,6 +276,29 @@ to authenticated
 using (id = auth.uid())
 with check (id = auth.uid());
 
+drop policy if exists "Teachers can read own profile and admins can read all" on public.teachers;
+create policy "Teachers can read own profile and admins can read all"
+on public.teachers for select
+to authenticated
+using (
+  id = auth.uid()
+  or public.is_admin()
+  or department_id = public.current_student_department_id()
+);
+
+drop policy if exists "Teachers can insert own profile" on public.teachers;
+create policy "Teachers can insert own profile"
+on public.teachers for insert
+to authenticated
+with check (id = auth.uid());
+
+drop policy if exists "Teachers can update own profile" on public.teachers;
+create policy "Teachers can update own profile"
+on public.teachers for update
+to authenticated
+using (id = auth.uid())
+with check (id = auth.uid());
+
 drop policy if exists "Admins can read admin accounts" on public.admins;
 create policy "Admins can read admin accounts"
 on public.admins for select
@@ -202,7 +309,11 @@ drop policy if exists "Users can read own suggestions and admins can read all" o
 create policy "Users can read own suggestions and admins can read all"
 on public.suggestions for select
 to authenticated
-using (user_id = auth.uid() or public.is_admin());
+using (
+  user_id = auth.uid()
+  or public.is_admin()
+  or public.student_department_id(user_id) = public.current_teacher_department_id()
+);
 
 drop policy if exists "Students can create own suggestions" on public.suggestions;
 create policy "Students can create own suggestions"
@@ -210,10 +321,9 @@ on public.suggestions for insert
 to authenticated
 with check (
   user_id = auth.uid()
-  and exists (
-    select 1
-    from public.students
-    where id = auth.uid()
+  and (
+    public.current_student_department_id() is not null
+    or public.current_teacher_department_id() is not null
   )
 );
 
@@ -235,6 +345,27 @@ create policy "Students can create own attachment metadata"
 on public.suggestion_attachments for insert
 to authenticated
 with check (user_id = auth.uid());
+
+drop policy if exists "Teacher supports are readable to authenticated users" on public.suggestion_teacher_supports;
+create policy "Teacher supports are readable to authenticated users"
+on public.suggestion_teacher_supports for select
+to authenticated
+using (true);
+
+drop policy if exists "Teachers can support suggestions" on public.suggestion_teacher_supports;
+create policy "Teachers can support suggestions"
+on public.suggestion_teacher_supports for insert
+to authenticated
+with check (
+  teacher_id = auth.uid()
+  and public.current_teacher_department_id() is not null
+);
+
+drop policy if exists "Teachers can remove own support" on public.suggestion_teacher_supports;
+create policy "Teachers can remove own support"
+on public.suggestion_teacher_supports for delete
+to authenticated
+using (teacher_id = auth.uid());
 
 insert into storage.buckets (id, name, public)
 values ('suggestion-attachments', 'suggestion-attachments', false)

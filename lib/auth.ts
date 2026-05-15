@@ -1,6 +1,6 @@
 import "server-only"
 
-import { cache } from "react"
+import type { User } from "@supabase/supabase-js"
 
 import { hasSupabaseEnv } from "@/lib/env"
 import { createClient } from "@/lib/supabase/server"
@@ -8,7 +8,7 @@ import { departments, type DepartmentId, type Profile } from "@/lib/types"
 
 const defaultDepartmentId = departments[0].id
 
-export const getCurrentUser = cache(async () => {
+export async function getCurrentUser() {
   if (!hasSupabaseEnv()) {
     return null
   }
@@ -19,12 +19,20 @@ export const getCurrentUser = cache(async () => {
   } = await supabase.auth.getUser()
 
   return user
-})
+}
 
-export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
+export async function getCurrentProfile(): Promise<Profile | null> {
   const user = await getCurrentUser()
 
   if (!user) {
+    return null
+  }
+
+  return getProfileForUser(user)
+}
+
+export async function getProfileForUser(user: User): Promise<Profile | null> {
+  if (!hasSupabaseEnv()) {
     return null
   }
 
@@ -73,17 +81,45 @@ export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
     }
   }
 
+  const { data: teacher } = await supabase
+    .from("teachers")
+    .select(
+      "id, full_name, email, department_id, created_at, updated_at, departments(name)"
+    )
+    .eq("id", user.id)
+    .maybeSingle()
+
+  if (teacher) {
+    const department = Array.isArray(teacher.departments)
+      ? teacher.departments[0]
+      : teacher.departments
+
+    return {
+      id: teacher.id,
+      full_name: teacher.full_name,
+      email: teacher.email,
+      department_id: teacher.department_id as DepartmentId,
+      department_name: department?.name ?? null,
+      role: "teacher",
+      created_at: teacher.created_at,
+      updated_at: teacher.updated_at,
+    }
+  }
+
   const fullName =
     typeof user.user_metadata?.full_name === "string"
       ? user.user_metadata.full_name
       : user.email
+  const metadataRole =
+    user.user_metadata?.role === "teacher" ? "teacher" : "student"
   const metadataDepartment =
     typeof user.user_metadata?.department_id === "string"
       ? user.user_metadata.department_id
       : defaultDepartmentId
 
+  const profileTable = metadataRole === "teacher" ? "teachers" : "students"
   const { data: createdProfile } = await supabase
-    .from("students")
+    .from(profileTable)
     .upsert({
       id: user.id,
       full_name: fullName,
@@ -109,11 +145,11 @@ export const getCurrentProfile = cache(async (): Promise<Profile | null> => {
     email: createdProfile.email,
     department_id: createdProfile.department_id as DepartmentId,
     department_name: department?.name ?? null,
-    role: "student",
+    role: metadataRole,
     created_at: createdProfile.created_at,
     updated_at: createdProfile.updated_at,
   }
-})
+}
 
 export async function requireUser() {
   const user = await getCurrentUser()
@@ -127,9 +163,30 @@ export async function requireUser() {
 
 export async function requireStudent() {
   const user = await getCurrentUser()
-  const profile = await getCurrentProfile()
 
-  if (!user || profile?.role !== "student") {
+  if (!user) {
+    return null
+  }
+
+  const profile = await getProfileForUser(user)
+
+  if (profile?.role !== "student" && profile?.role !== "teacher") {
+    return null
+  }
+
+  return user
+}
+
+export async function requireTeacher() {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    return null
+  }
+
+  const profile = await getProfileForUser(user)
+
+  if (profile?.role !== "teacher") {
     return null
   }
 
@@ -137,7 +194,13 @@ export async function requireStudent() {
 }
 
 export async function requireAdmin() {
-  const profile = await getCurrentProfile()
+  const user = await getCurrentUser()
+
+  if (!user) {
+    return null
+  }
+
+  const profile = await getProfileForUser(user)
 
   if (profile?.role !== "admin") {
     return null

@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:setup": "node --env-file=.env.local scripts/setup-db.mjs",
     "db:reset": "node --env-file=.env.local scripts/reset-db.mjs",
+    "db:seed-demo": "node --env-file=.env.local scripts/seed-demo.mjs",
     "seed:admin": "node --env-file=.env.local scripts/seed-admin.mjs"
   },
   "dependencies": {

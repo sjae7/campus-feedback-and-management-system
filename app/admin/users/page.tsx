@@ -3,8 +3,10 @@ import { redirect } from "next/navigation"
 import { AppShell } from "@/components/app-shell"
 import { ConfigurationNotice } from "@/components/configuration-notice"
 import { CreateUserForm } from "@/components/create-user-form"
-import { getCurrentProfile, getCurrentUser } from "@/lib/auth"
+import { getCurrentUser, getProfileForUser } from "@/lib/auth"
 import { hasSupabaseEnv } from "@/lib/env"
+
+export const dynamic = "force-dynamic"
 
 export default async function AdminUsersPage() {
   const isConfigured = hasSupabaseEnv()
@@ -23,7 +25,7 @@ export default async function AdminUsersPage() {
     redirect("/login")
   }
 
-  const profile = await getCurrentProfile()
+  const profile = await getProfileForUser(user)
 
   if (profile?.role !== "admin") {
     redirect("/dashboard")

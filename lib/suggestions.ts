@@ -7,6 +7,7 @@ import type {
   DepartmentId,
   Suggestion,
   SuggestionAttachment,
+  TeacherSupport,
   StatusCounts,
   SuggestionStatus,
 } from "@/lib/types"
@@ -16,14 +17,29 @@ const ATTACHMENTS_BUCKET = "suggestion-attachments"
 const SIGNED_URL_TTL = 60 * 10
 
 type StudentRelation = {
+  id: string
   full_name: string | null
   email: string | null
   department_id: string | null
   departments?: { name: string | null } | { name: string | null }[] | null
 }
 
-type AdminSuggestionRow = Omit<AdminSuggestion, "students"> & {
-  students?: StudentRelation | StudentRelation[] | null
+type AdminSuggestionRow = Omit<AdminSuggestion, "students">
+
+type TeacherSupportRelation = {
+  suggestion_id: string
+  teacher_id: string
+  created_at: string
+  teachers?:
+    | {
+        full_name: string | null
+        departments?: { name: string | null } | { name: string | null }[] | null
+      }
+    | {
+        full_name: string | null
+        departments?: { name: string | null } | { name: string | null }[] | null
+      }[]
+    | null
 }
 
 type SuggestionPreview = Pick<
@@ -84,12 +100,14 @@ export async function getUserSuggestions(userId: string) {
   const { data } = await supabase
     .from("suggestions")
     .select(
-      "id, user_id, title, message, category, status, created_at, updated_at, suggestion_attachments(id, suggestion_id, user_id, bucket, path, file_name, mime_type, size, created_at)"
+      "id, user_id, title, message, category, status, rejection_reason, created_at, updated_at, suggestion_attachments(id, suggestion_id, user_id, bucket, path, file_name, mime_type, size, created_at)"
     )
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
 
-  return attachSignedUrls((data ?? []) as Suggestion[])
+  const suggestions = await attachTeacherSupportInfo((data ?? []) as Suggestion[])
+
+  return attachSignedUrls(suggestions)
 }
 
 export async function getUserSuggestionDashboard(userId: string): Promise<{
@@ -152,13 +170,48 @@ export async function getAdminSuggestions() {
   const { data } = await supabase
     .from("suggestions")
     .select(
-      "id, user_id, title, message, category, status, created_at, updated_at, students(full_name, email, department_id, departments(name)), suggestion_attachments(id, suggestion_id, user_id, bucket, path, file_name, mime_type, size, created_at)"
+      "id, user_id, title, message, category, status, rejection_reason, created_at, updated_at, suggestion_attachments(id, suggestion_id, user_id, bucket, path, file_name, mime_type, size, created_at)"
     )
     .order("created_at", { ascending: false })
 
-  const suggestions = normalizeAdminSuggestions((data ?? []) as AdminSuggestionRow[])
+  const suggestionsWithSubmitters = await attachSubmitters(
+    (data ?? []) as AdminSuggestionRow[]
+  )
+  const suggestions = await attachTeacherSupportInfo(suggestionsWithSubmitters)
 
   return attachSignedUrls(suggestions)
+}
+
+export async function getTeacherReviewSuggestions(teacherId: string) {
+  if (!hasSupabaseEnv()) {
+    return []
+  }
+
+  const supabase = await createClient()
+  const [teacherResult, suggestionsResult] = await Promise.all([
+    supabase
+      .from("teachers")
+      .select("department_id")
+      .eq("id", teacherId)
+      .maybeSingle(),
+    supabase
+      .from("suggestions")
+      .select(
+        "id, user_id, title, message, category, status, rejection_reason, created_at, updated_at"
+      )
+      .order("created_at", { ascending: false }),
+  ])
+
+  const suggestionsWithSubmitters = await attachSubmitters(
+    (suggestionsResult.data ?? []) as AdminSuggestionRow[]
+  )
+  const studentSuggestions = suggestionsWithSubmitters.filter(
+    (suggestion) =>
+      suggestion.students?.role === "student" &&
+      suggestion.students.department_id === teacherResult.data?.department_id
+  )
+
+  return attachTeacherSupportInfo(studentSuggestions, teacherId)
 }
 
 export async function getAdminSuggestionCounts(): Promise<StatusCounts> {
@@ -200,7 +253,7 @@ export async function getAdminSuggestion(suggestionId: string) {
   const { data } = await supabase
     .from("suggestions")
     .select(
-      "id, user_id, title, message, category, status, created_at, updated_at, students(full_name, email, department_id, departments(name)), suggestion_attachments(id, suggestion_id, user_id, bucket, path, file_name, mime_type, size, created_at)"
+      "id, user_id, title, message, category, status, rejection_reason, created_at, updated_at, suggestion_attachments(id, suggestion_id, user_id, bucket, path, file_name, mime_type, size, created_at)"
     )
     .eq("id", suggestionId)
     .maybeSingle()
@@ -209,34 +262,117 @@ export async function getAdminSuggestion(suggestionId: string) {
     return null
   }
 
-  const [suggestion] = await attachSignedUrls(
-    normalizeAdminSuggestions([data as AdminSuggestionRow])
-  )
+  const [suggestionWithSubmitter] = await attachSubmitters([
+    data as AdminSuggestionRow,
+  ])
+  const [suggestionWithSupport] = await attachTeacherSupportInfo([
+    suggestionWithSubmitter,
+  ])
+  const [suggestion] = await attachSignedUrls([suggestionWithSupport])
 
   return suggestion ?? null
 }
 
-function normalizeAdminSuggestions(rows: AdminSuggestionRow[]) {
-  return rows.map((suggestion) => {
-    const student = Array.isArray(suggestion.students)
-      ? suggestion.students[0]
-      : suggestion.students
-    const department = Array.isArray(student?.departments)
-      ? student.departments[0]
-      : student?.departments
+async function attachTeacherSupportInfo<T extends { id: string }>(
+  rows: T[],
+  currentTeacherId?: string
+) {
+  if (!rows.length) {
+    return rows.map((row) => ({
+      ...row,
+      teacher_support_count: 0,
+      teacher_supported: false,
+      teacher_supports: [],
+    }))
+  }
+
+  const suggestionIds = rows.map((row) => row.id)
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from("suggestion_teacher_supports")
+    .select("suggestion_id, teacher_id, created_at, teachers(full_name, departments(name))")
+    .in("suggestion_id", suggestionIds)
+
+  const supportsBySuggestion = new Map<string, TeacherSupport[]>()
+
+  for (const support of (data ?? []) as TeacherSupportRelation[]) {
+    const teacher = Array.isArray(support.teachers)
+      ? support.teachers[0]
+      : support.teachers
+    const department = Array.isArray(teacher?.departments)
+      ? teacher.departments[0]
+      : teacher?.departments
+    const supports = supportsBySuggestion.get(support.suggestion_id) ?? []
+
+    supports.push({
+      suggestion_id: support.suggestion_id,
+      teacher_id: support.teacher_id,
+      created_at: support.created_at,
+      teacher_name: teacher?.full_name ?? null,
+      teacher_department_name: department?.name ?? null,
+    })
+    supportsBySuggestion.set(support.suggestion_id, supports)
+  }
+
+  return rows.map((row) => {
+    const supports = supportsBySuggestion.get(row.id) ?? []
 
     return {
-      ...suggestion,
-      students: student
-        ? {
-            full_name: student.full_name,
-            email: student.email,
-            department_id: student.department_id as DepartmentId | null,
-            department_name: department?.name ?? null,
-          }
-        : null,
+      ...row,
+      teacher_support_count: supports.length,
+      teacher_supported: currentTeacherId
+        ? supports.some((support) => support.teacher_id === currentTeacherId)
+        : false,
+      teacher_supports: supports,
     }
   })
+}
+
+async function attachSubmitters(
+  rows: AdminSuggestionRow[]
+): Promise<AdminSuggestion[]> {
+  if (!rows.length) {
+    return []
+  }
+
+  const userIds = Array.from(new Set(rows.map((row) => row.user_id)))
+  const supabase = await createClient()
+  const [studentsResult, teachersResult] = await Promise.all([
+    supabase
+      .from("students")
+      .select("id, full_name, email, department_id, departments(name)")
+      .in("id", userIds),
+    supabase
+      .from("teachers")
+      .select("id, full_name, email, department_id, departments(name)")
+      .in("id", userIds),
+  ])
+
+  const submitters = new Map<string, NonNullable<AdminSuggestion["students"]>>()
+
+  for (const [role, profiles] of [
+    ["student", studentsResult.data ?? []],
+    ["teacher", teachersResult.data ?? []],
+  ] as const) {
+    for (const profile of profiles as StudentRelation[]) {
+      const department = Array.isArray(profile.departments)
+        ? profile.departments[0]
+        : profile.departments
+
+      submitters.set(profile.id, {
+        full_name: profile.full_name,
+        email: profile.email,
+        department_id: profile.department_id as DepartmentId | null,
+        department_name: department?.name ?? null,
+        role,
+      })
+    }
+  }
+
+  return rows.map((suggestion) => ({
+    ...suggestion,
+    students: submitters.get(suggestion.user_id) ?? null,
+  }))
 }
 
 export function getStatusCounts(

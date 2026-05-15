@@ -17,9 +17,11 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { getCurrentProfile, getCurrentUser } from "@/lib/auth"
+import { getCurrentUser, getProfileForUser } from "@/lib/auth"
 import { hasSupabaseEnv } from "@/lib/env"
 import { getAdminSuggestions, getStatusCounts } from "@/lib/suggestions"
+
+export const dynamic = "force-dynamic"
 
 export default async function AdminSuggestionsPage() {
   const isConfigured = hasSupabaseEnv()
@@ -38,7 +40,7 @@ export default async function AdminSuggestionsPage() {
     redirect("/login")
   }
 
-  const profile = await getCurrentProfile()
+  const profile = await getProfileForUser(user)
 
   if (profile?.role !== "admin") {
     redirect("/dashboard")
@@ -49,16 +51,16 @@ export default async function AdminSuggestionsPage() {
 
   return (
     <AppShell profile={profile} email={user.email} active="admin-suggestions">
-      <main className="flex flex-1 flex-col gap-6 p-4 md:p-6">
+      <main className="flex min-w-0 flex-1 flex-col gap-6 p-4 md:p-6">
         <AdminMetricCardGrid counts={counts} />
-        <Card>
+        <Card className="min-w-0">
           <CardHeader>
             <CardTitle>Suggestion inbox</CardTitle>
             <CardDescription>
               Filter campus suggestions and update each student-visible status.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="min-w-0">
             {suggestions.length === 0 ? (
               <Empty className="min-h-64">
                 <EmptyHeader>

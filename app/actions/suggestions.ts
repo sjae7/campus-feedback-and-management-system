@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
-import { requireStudent } from "@/lib/auth"
+import { requireStudent, requireTeacher } from "@/lib/auth"
 import { hasSupabaseEnv } from "@/lib/env"
 import { createClient } from "@/lib/supabase/server"
 import { ATTACHMENTS_BUCKET } from "@/lib/suggestions"
@@ -30,6 +30,8 @@ const suggestionSchema = z.object({
   message: z.string().min(8, "Message must be at least 8 characters.").max(3000),
 })
 
+const suggestionIdSchema = z.uuid()
+
 function sanitizeFileName(fileName: string) {
   return fileName
     .replace(/[^a-zA-Z0-9._-]/g, "-")
@@ -51,7 +53,7 @@ export async function createSuggestion(
 
   if (!user) {
     return {
-      message: "You must be signed in as a student to submit feedback.",
+      message: "You must be signed in as a student or teacher to submit feedback.",
     }
   }
 
@@ -137,5 +139,97 @@ export async function createSuggestion(
   return {
     success: true,
     message: "Suggestion submitted.",
+  }
+}
+
+export async function toggleTeacherSupport(suggestionId: string) {
+  if (!hasSupabaseEnv()) {
+    return {
+      message: "Supabase is not configured.",
+    }
+  }
+
+  const teacher = await requireTeacher()
+
+  if (!teacher) {
+    return {
+      message: "Only teachers can support student feedback.",
+    }
+  }
+
+  const parsed = suggestionIdSchema.safeParse(suggestionId)
+
+  if (!parsed.success) {
+    return {
+      message: "Invalid suggestion.",
+    }
+  }
+
+  const supabase = await createClient()
+  const { data: suggestion } = await supabase
+    .from("suggestions")
+    .select("id, user_id")
+    .eq("id", parsed.data)
+    .maybeSingle()
+
+  if (!suggestion) {
+    return {
+      message: "Suggestion was not found.",
+    }
+  }
+
+  const { data: student } = await supabase
+    .from("students")
+    .select("id")
+    .eq("id", suggestion.user_id)
+    .maybeSingle()
+
+  if (!student) {
+    return {
+      message: "Teachers can only support student feedback.",
+    }
+  }
+
+  const { data: existingSupport } = await supabase
+    .from("suggestion_teacher_supports")
+    .select("suggestion_id")
+    .eq("suggestion_id", parsed.data)
+    .eq("teacher_id", teacher.id)
+    .maybeSingle()
+
+  if (existingSupport) {
+    const { error } = await supabase
+      .from("suggestion_teacher_supports")
+      .delete()
+      .eq("suggestion_id", parsed.data)
+      .eq("teacher_id", teacher.id)
+
+    if (error) {
+      return {
+        message: error.message,
+      }
+    }
+  } else {
+    const { error } = await supabase.from("suggestion_teacher_supports").insert({
+      suggestion_id: parsed.data,
+      teacher_id: teacher.id,
+    })
+
+    if (error) {
+      return {
+        message: error.message,
+      }
+    }
+  }
+
+  revalidatePath("/dashboard/student-feedback")
+  revalidatePath("/admin")
+  revalidatePath("/admin/suggestions")
+  revalidatePath(`/admin/suggestions/${parsed.data}`)
+
+  return {
+    success: true,
+    supported: !existingSupport,
+    message: existingSupport ? "Support removed." : "Feedback supported.",
   }
 }

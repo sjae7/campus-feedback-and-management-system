@@ -6,6 +6,7 @@ import {
   ExternalLinkIcon,
   FileTextIcon,
   MailIcon,
+  UsersIcon,
   UserIcon,
 } from "lucide-react"
 
@@ -14,6 +15,7 @@ import { AppShell } from "@/components/app-shell"
 import { ConfigurationNotice } from "@/components/configuration-notice"
 import { DeleteSuggestionButton } from "@/components/delete-suggestion-button"
 import { StatusBadge } from "@/components/status-badge"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -24,9 +26,11 @@ import {
 } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { formatBytes, formatDateTime } from "@/lib/format"
-import { getCurrentProfile, getCurrentUser } from "@/lib/auth"
+import { getCurrentUser, getProfileForUser } from "@/lib/auth"
 import { hasSupabaseEnv } from "@/lib/env"
 import { getAdminSuggestion } from "@/lib/suggestions"
+
+export const dynamic = "force-dynamic"
 
 type AdminSuggestionDetailPageProps = {
   params: Promise<{
@@ -53,7 +57,7 @@ export default async function AdminSuggestionDetailPage({
     redirect("/login")
   }
 
-  const profile = await getCurrentProfile()
+  const profile = await getProfileForUser(user)
 
   if (profile?.role !== "admin") {
     redirect("/dashboard")
@@ -88,7 +92,13 @@ export default async function AdminSuggestionDetailPage({
                     {formatDateTime(suggestion.created_at)}
                   </CardDescription>
                 </div>
-                <StatusBadge status={suggestion.status} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="secondary">
+                    <UsersIcon data-icon="inline-start" />
+                    {suggestion.teacher_support_count ?? 0} teacher support
+                  </Badge>
+                  <StatusBadge status={suggestion.status} />
+                </div>
               </div>
             </CardHeader>
             <CardContent className="flex flex-col gap-6">
@@ -97,6 +107,17 @@ export default async function AdminSuggestionDetailPage({
                   {suggestion.message}
                 </p>
               </div>
+              {suggestion.status === "rejected" &&
+              suggestion.rejection_reason ? (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+                  <h2 className="text-sm font-medium text-destructive">
+                    Rejection reason
+                  </h2>
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+                    {suggestion.rejection_reason}
+                  </p>
+                </div>
+              ) : null}
               <Separator />
               <div className="flex flex-col gap-3">
                 <h2 className="text-sm font-medium">Attachments</h2>
@@ -164,7 +185,41 @@ export default async function AdminSuggestionDetailPage({
                 <AdminSuggestionStatusSelect
                   suggestionId={suggestion.id}
                   status={suggestion.status}
+                  rejectionReason={suggestion.rejection_reason}
                 />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Teacher support</CardTitle>
+                <CardDescription>
+                  Teachers who supported this student feedback.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3 text-sm">
+                {suggestion.teacher_supports?.length ? (
+                  suggestion.teacher_supports.map((support) => (
+                    <div
+                      key={support.teacher_id}
+                      className="rounded-lg border p-3"
+                    >
+                      <p className="font-medium">
+                        {support.teacher_name ?? "Unknown teacher"}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {support.teacher_department_name ??
+                          "No department on profile"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Supported {formatDateTime(support.created_at)}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="rounded-lg border border-dashed p-4 text-muted-foreground">
+                    No teacher has supported this feedback yet.
+                  </p>
+                )}
               </CardContent>
             </Card>
             <Card>
@@ -184,7 +239,7 @@ export default async function AdminSuggestionDetailPage({
             <Card>
               <CardHeader>
                 <CardTitle>Submitter</CardTitle>
-                <CardDescription>Student account details.</CardDescription>
+                <CardDescription>Submitter account details.</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-3 text-sm">
                 <div className="flex items-start gap-3">
@@ -192,6 +247,9 @@ export default async function AdminSuggestionDetailPage({
                   <div className="min-w-0">
                     <p className="font-medium">
                       {suggestion.students?.full_name ?? "Unknown student"}
+                    </p>
+                    <p className="capitalize text-muted-foreground">
+                      {suggestion.students?.role ?? "Unknown role"}
                     </p>
                     <p className="text-muted-foreground">
                       {suggestion.students?.department_name ??

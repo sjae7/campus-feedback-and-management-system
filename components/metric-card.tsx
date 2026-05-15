@@ -15,9 +15,9 @@ type MetricCardProps = {
 
 export function MetricCard({ label, value, icon: Icon }: MetricCardProps) {
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader className="flex flex-row items-center justify-between gap-3 pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
+        <CardTitle className="min-w-0 text-sm font-medium text-muted-foreground">
           {label}
         </CardTitle>
         {Icon ? <Icon className="text-muted-foreground" /> : null}

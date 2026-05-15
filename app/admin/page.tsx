@@ -13,9 +13,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { getCurrentProfile, getCurrentUser } from "@/lib/auth"
+import { getCurrentUser, getProfileForUser } from "@/lib/auth"
 import { hasSupabaseEnv } from "@/lib/env"
 import { getAdminSuggestionCounts } from "@/lib/suggestions"
+
+export const dynamic = "force-dynamic"
 
 export default async function AdminPage() {
   const isConfigured = hasSupabaseEnv()
@@ -34,7 +36,7 @@ export default async function AdminPage() {
     redirect("/login")
   }
 
-  const profile = await getCurrentProfile()
+  const profile = await getProfileForUser(user)
 
   if (profile?.role !== "admin") {
     redirect("/dashboard")

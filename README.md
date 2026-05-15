@@ -32,6 +32,10 @@ DEFAULT_STUDENT_EMAIL=student@example.com
 DEFAULT_STUDENT_PASSWORD=student-password
 DEFAULT_STUDENT_FULL_NAME=Sample Student
 DEFAULT_STUDENT_DEPARTMENT_ID=computer-studies
+DEFAULT_TEACHER_EMAIL=teacher@example.com
+DEFAULT_TEACHER_PASSWORD=teacher-password
+DEFAULT_TEACHER_FULL_NAME=Sample Teacher
+DEFAULT_TEACHER_DEPARTMENT_ID=computer-studies
 ```
 
 Create the database tables and policies:
@@ -44,15 +48,17 @@ This runs `supabase/schema.sql` and creates:
 
 - `departments`
 - `students`
+- `teachers`
 - `admins`
 - `suggestions`
 - `suggestion_attachments`
+- `suggestion_teacher_supports`
 - private `suggestion-attachments` storage bucket
 - RLS policies for users and admins
-- trigger to create a student or admin row after account creation
+- trigger to create a student, teacher, or admin row after account creation
 
-To drop the old tables, recreate the schema, and seed one admin plus one
-student account:
+To drop the old tables, recreate the schema, and seed one admin, one student,
+and one teacher account:
 
 ```bash
 npm run db:reset
@@ -60,6 +66,15 @@ npm run db:reset
 
 This is destructive. It removes the app tables, attachment storage objects, and
 seed users matching the configured seed emails before recreating them.
+
+Seed demo students, teachers, feedback, and teacher-support records:
+
+```bash
+npm run db:seed-demo
+```
+
+The demo script creates named students and teachers with the default password
+`demo-password` unless `DEMO_ACCOUNT_PASSWORD` is set.
 
 Create the first admin account:
 
@@ -89,14 +104,23 @@ Users:
 - Sign up or sign in.
 - Open `/dashboard`.
 - Submit feedback and suggestions with title, category, message, and optional attachment.
-- Track statuses: `new`, `reviewing`, `approved`, `rejected`.
+- Track statuses and rejection reasons from admins.
+- Update account name and enrolled department from Settings.
+
+Teachers:
+
+- Submit and track their own feedback.
+- Review student feedback from the Student feedback page.
+- Support student feedback so admins can see teacher-backed items.
+- Update account name and department from Settings.
 
 Admins:
 
 - Create the first admin with `npm run seed:admin`.
 - Open `/admin`.
-- Create student or admin accounts with email and temporary password.
+- Create student, teacher, or admin accounts with email and temporary password.
 - Search and filter all suggestions.
+- Sort suggestions by teacher support and see how many teachers supported each feedback item.
 - Update suggestion status.
 - Open private attachments through short-lived signed URLs.
 
@@ -109,6 +133,7 @@ npm run build
 npm run start
 npm run db:setup
 npm run db:reset
+npm run db:seed-demo
 npm run seed:admin
 ```
 

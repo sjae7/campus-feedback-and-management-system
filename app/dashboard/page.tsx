@@ -3,6 +3,7 @@ import Link from "next/link"
 import {
   ClipboardListIcon,
   MailIcon,
+  MessageSquareTextIcon,
   SendIcon,
 } from "lucide-react"
 
@@ -18,10 +19,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { getCurrentProfile, getCurrentUser } from "@/lib/auth"
+import { getCurrentUser, getProfileForUser } from "@/lib/auth"
 import { hasSupabaseEnv } from "@/lib/env"
 import { getUserSuggestionDashboard } from "@/lib/suggestions"
 import { formatDateTime } from "@/lib/format"
+
+export const dynamic = "force-dynamic"
 
 export default async function DashboardPage() {
   const isConfigured = hasSupabaseEnv()
@@ -40,7 +43,7 @@ export default async function DashboardPage() {
     redirect("/login")
   }
 
-  const profile = await getCurrentProfile()
+  const profile = await getProfileForUser(user)
 
   if (profile?.role === "admin") {
     redirect("/admin")
@@ -55,7 +58,9 @@ export default async function DashboardPage() {
         <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
           <Card>
             <CardHeader>
-              <CardTitle>Student account</CardTitle>
+              <CardTitle>
+                {profile?.role === "teacher" ? "Teacher account" : "Student account"}
+              </CardTitle>
               <CardDescription>
                 Your signed-in email account for campus suggestions.
               </CardDescription>
@@ -67,7 +72,8 @@ export default async function DashboardPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="truncate font-medium">
-                    {profile?.full_name ?? "Student"}
+                    {profile?.full_name ??
+                      (profile?.role === "teacher" ? "Teacher" : "Student")}
                   </p>
                   <p className="truncate text-sm text-muted-foreground">
                     {user.email}
@@ -77,19 +83,31 @@ export default async function DashboardPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <Button asChild>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button asChild className="justify-start">
                   <Link href="/dashboard/new">
                     <SendIcon data-icon="inline-start" />
                     Submit feedback
                   </Link>
                 </Button>
-                <Button asChild variant="outline">
+                <Button asChild variant="outline" className="justify-start">
                   <Link href="/dashboard/suggestions">
                     <ClipboardListIcon data-icon="inline-start" />
                     Track suggestions
                   </Link>
                 </Button>
+                {profile?.role === "teacher" ? (
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="justify-start sm:col-span-2"
+                  >
+                    <Link href="/dashboard/student-feedback">
+                      <MessageSquareTextIcon data-icon="inline-start" />
+                      Review student feedback
+                    </Link>
+                  </Button>
+                ) : null}
               </div>
             </CardContent>
           </Card>

@@ -23,7 +23,16 @@ export type AdminActionState = {
 const updateStatusSchema = z.object({
   suggestionId: z.uuid(),
   status: z.enum(suggestionStatuses),
-})
+  rejectionReason: z.string().trim().max(1000).optional(),
+}).refine(
+  (value) =>
+    value.status !== "rejected" ||
+    Boolean(value.rejectionReason && value.rejectionReason.length >= 5),
+  {
+    message: "Enter a rejection reason with at least 5 characters.",
+    path: ["rejectionReason"],
+  }
+)
 
 const suggestionIdSchema = z.uuid()
 
@@ -31,19 +40,20 @@ const createUserSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters.").trim(),
   email: z.email("Enter a valid email address.").trim(),
   password: z.string().min(8, "Password must be at least 8 characters."),
-  role: z.enum(["student", "admin"]),
+  role: z.enum(["student", "teacher", "admin"]),
   department: z.enum(departmentIds).optional(),
 }).refine(
   (value) => value.role === "admin" || Boolean(value.department),
   {
-    message: "Choose a department for student accounts.",
+    message: "Choose a department for student and teacher accounts.",
     path: ["department"],
   }
 )
 
 export async function updateSuggestionStatus(
   suggestionId: string,
-  status: SuggestionStatus
+  status: SuggestionStatus,
+  rejectionReason?: string
 ): Promise<AdminActionState> {
   if (!hasSupabaseEnv()) {
     return {
@@ -59,7 +69,11 @@ export async function updateSuggestionStatus(
     }
   }
 
-  const parsed = updateStatusSchema.safeParse({ suggestionId, status })
+  const parsed = updateStatusSchema.safeParse({
+    suggestionId,
+    status,
+    rejectionReason,
+  })
 
   if (!parsed.success) {
     return {
@@ -72,6 +86,10 @@ export async function updateSuggestionStatus(
     .from("suggestions")
     .update({
       status: parsed.data.status,
+      rejection_reason:
+        parsed.data.status === "rejected"
+          ? parsed.data.rejectionReason
+          : null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", parsed.data.suggestionId)
@@ -84,6 +102,7 @@ export async function updateSuggestionStatus(
 
   revalidatePath("/admin")
   revalidatePath("/admin/suggestions")
+  revalidatePath(`/admin/suggestions/${parsed.data.suggestionId}`)
   revalidatePath("/dashboard")
   revalidatePath("/dashboard/suggestions")
 
@@ -249,12 +268,14 @@ export async function createManagedUser(
           full_name: parsed.data.fullName,
           email: parsed.data.email,
         })
-      : await supabaseAdmin.from("students").upsert({
-          id: data.user.id,
-          full_name: parsed.data.fullName,
-          email: parsed.data.email,
-          department_id: parsed.data.department,
-        })
+      : await supabaseAdmin
+          .from(parsed.data.role === "teacher" ? "teachers" : "students")
+          .upsert({
+            id: data.user.id,
+            full_name: parsed.data.fullName,
+            email: parsed.data.email,
+            department_id: parsed.data.department,
+          })
 
   if (profileError) {
     return {
@@ -267,6 +288,8 @@ export async function createManagedUser(
 
   return {
     success: true,
-    message: `${parsed.data.role === "admin" ? "Admin" : "Student"} account created.`,
+    message: `${parsed.data.role[0].toUpperCase()}${parsed.data.role.slice(
+      1
+    )} account created.`,
   }
 }

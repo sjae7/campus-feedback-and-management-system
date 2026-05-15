@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useActionState, useEffect } from "react"
+import { useActionState, useEffect, useState } from "react"
 import { ArrowRightIcon, LogInIcon, UserPlusIcon } from "lucide-react"
 import { toast } from "sonner"
 
@@ -47,6 +47,7 @@ type AuthFormProps = {
 export function AuthForm({ mode, isConfigured }: AuthFormProps) {
   const action = mode === "login" ? login : signup
   const [state, formAction, pending] = useActionState(action, initialState)
+  const [role, setRole] = useState<"student" | "teacher">("student")
 
   useEffect(() => {
     if (state.message) {
@@ -86,15 +87,55 @@ export function AuthForm({ mode, isConfigured }: AuthFormProps) {
                     }))}
                   />
                 </Field>
+                <Field data-invalid={Boolean(state.errors?.role)}>
+                  <FieldLabel htmlFor="role">Account type</FieldLabel>
+                  <Select
+                    name="role"
+                    value={role}
+                    onValueChange={(value) =>
+                      setRole(value as "student" | "teacher")
+                    }
+                    disabled={!isConfigured || pending}
+                  >
+                    <SelectTrigger
+                      id="role"
+                      className="w-full"
+                      aria-invalid={Boolean(state.errors?.role)}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="student">Student</SelectItem>
+                        <SelectItem value="teacher">Teacher</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                  <FieldError
+                    errors={state.errors?.role?.map((message) => ({
+                      message,
+                    }))}
+                  />
+                </Field>
                 <Field data-invalid={Boolean(state.errors?.department)}>
-                  <FieldLabel htmlFor="department">Department</FieldLabel>
+                  <FieldLabel htmlFor="department">
+                    {role === "student"
+                      ? "Department enrolled to"
+                      : "Department belonged to"}
+                  </FieldLabel>
                   <Select name="department" disabled={!isConfigured || pending}>
                     <SelectTrigger
                       id="department"
                       className="w-full"
                       aria-invalid={Boolean(state.errors?.department)}
                     >
-                      <SelectValue placeholder="Choose your department" />
+                      <SelectValue
+                        placeholder={
+                          role === "student"
+                            ? "Choose enrolled department"
+                            : "Choose teacher department"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>

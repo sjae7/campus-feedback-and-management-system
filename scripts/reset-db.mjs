@@ -19,6 +19,13 @@ const studentSeed = {
   fullName: process.env.DEFAULT_STUDENT_FULL_NAME ?? "Sample Student",
   departmentId: process.env.DEFAULT_STUDENT_DEPARTMENT_ID ?? "computer-studies",
 }
+
+const teacherSeed = {
+  email: process.env.DEFAULT_TEACHER_EMAIL ?? "teacher@example.com",
+  password: process.env.DEFAULT_TEACHER_PASSWORD ?? "teacher-password",
+  fullName: process.env.DEFAULT_TEACHER_FULL_NAME ?? "Sample Teacher",
+  departmentId: process.env.DEFAULT_TEACHER_DEPARTMENT_ID ?? "computer-studies",
+}
 const attachmentsBucket = "suggestion-attachments"
 
 if (!databaseUrl || !supabaseUrl || !serviceRoleKey) {
@@ -28,7 +35,7 @@ if (!databaseUrl || !supabaseUrl || !serviceRoleKey) {
   process.exit(1)
 }
 
-for (const account of [adminSeed, studentSeed]) {
+for (const account of [adminSeed, studentSeed, teacherSeed]) {
   if (account.password.length < 8) {
     console.error(`Password for ${account.email} must be at least 8 characters.`)
     process.exit(1)
@@ -43,9 +50,11 @@ drop policy if exists "Users can read own suggestion attachments and admins can 
 drop policy if exists "Users can delete own suggestion attachments and admins can delete all" on storage.objects;
 
 drop table if exists public.suggestion_attachments cascade;
+drop table if exists public.suggestion_teacher_supports cascade;
 drop table if exists public.suggestions cascade;
 drop table if exists public.profiles cascade;
 drop table if exists public.students cascade;
+drop table if exists public.teachers cascade;
 drop table if exists public.admins cascade;
 drop table if exists public.departments cascade;
 
@@ -162,15 +171,16 @@ async function recreateUser({ email, password, fullName, role, departmentId }) {
       throw adminError
     }
   } else {
-    const { error: studentError } = await supabaseAdmin.from("students").upsert({
+    const profileTable = role === "teacher" ? "teachers" : "students"
+    const { error: profileError } = await supabaseAdmin.from(profileTable).upsert({
       id: data.user.id,
       full_name: fullName,
       email,
       department_id: departmentId,
     })
 
-    if (studentError) {
-      throw studentError
+    if (profileError) {
+      throw profileError
     }
   }
 }
@@ -190,10 +200,15 @@ try {
     ...studentSeed,
     role: "student",
   })
+  await recreateUser({
+    ...teacherSeed,
+    role: "teacher",
+  })
 
   console.log("Database reset complete.")
   console.log(`Seeded admin: ${adminSeed.email}`)
   console.log(`Seeded student: ${studentSeed.email}`)
+  console.log(`Seeded teacher: ${teacherSeed.email}`)
 } catch (error) {
   console.error(error instanceof Error ? error.message : error)
   process.exitCode = 1

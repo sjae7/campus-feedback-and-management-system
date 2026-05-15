@@ -33,10 +33,6 @@ export const departments = [
     name: "Entrepreneurship Department",
   },
   {
-    id: "teacher-education",
-    name: "Teacher Education Department",
-  },
-  {
     id: "nursing",
     name: "Nursing Department",
   },
@@ -58,7 +54,7 @@ export type Profile = {
   email: string | null
   department_id: DepartmentId | null
   department_name: string | null
-  role: "student" | "admin"
+  role: "student" | "teacher" | "admin"
   created_at: string
   updated_at: string
 }
@@ -76,6 +72,14 @@ export type SuggestionAttachment = {
   signedUrl?: string | null
 }
 
+export type TeacherSupport = {
+  suggestion_id: string
+  teacher_id: string
+  created_at: string
+  teacher_name?: string | null
+  teacher_department_name?: string | null
+}
+
 export type Suggestion = {
   id: string
   user_id: string
@@ -83,13 +87,20 @@ export type Suggestion = {
   message: string
   category: string
   status: SuggestionStatus
+  rejection_reason: string | null
   created_at: string
   updated_at: string
   suggestion_attachments?: SuggestionAttachment[]
+  teacher_support_count?: number
+  teacher_supported?: boolean
+  teacher_supports?: TeacherSupport[]
 }
 
 export type AdminSuggestion = Suggestion & {
   students?:
-    | Pick<Profile, "full_name" | "email" | "department_id" | "department_name">
+    | Pick<
+        Profile,
+        "full_name" | "email" | "department_id" | "department_name" | "role"
+      >
     | null
 }

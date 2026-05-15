@@ -38,7 +38,7 @@ const initialState: AdminActionState = {}
 
 export function CreateUserForm() {
   const formRef = useRef<HTMLFormElement>(null)
-  const [role, setRole] = useState<"student" | "admin">("student")
+  const [role, setRole] = useState<"student" | "teacher" | "admin">("student")
   const [state, formAction, pending] = useActionState(
     createManagedUser,
     initialState
@@ -100,7 +100,9 @@ export function CreateUserForm() {
               <Select
                 name="role"
                 value={role}
-                onValueChange={(value) => setRole(value as "student" | "admin")}
+                onValueChange={(value) =>
+                  setRole(value as "student" | "teacher" | "admin")
+                }
                 disabled={pending}
               >
                 <SelectTrigger id="role" className="w-full">
@@ -109,17 +111,28 @@ export function CreateUserForm() {
                 <SelectContent>
                   <SelectGroup>
                     <SelectItem value="student">Student</SelectItem>
+                    <SelectItem value="teacher">Teacher</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
             </Field>
-            {role === "student" ? (
+            {role !== "admin" ? (
               <Field>
-                <FieldLabel htmlFor="department">Department</FieldLabel>
+                <FieldLabel htmlFor="department">
+                  {role === "student"
+                    ? "Department enrolled to"
+                    : "Department belonged to"}
+                </FieldLabel>
                 <Select name="department" disabled={pending}>
                   <SelectTrigger id="department" className="w-full">
-                    <SelectValue placeholder="Choose a department" />
+                    <SelectValue
+                      placeholder={
+                        role === "student"
+                          ? "Choose enrolled department"
+                          : "Choose teacher department"
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>

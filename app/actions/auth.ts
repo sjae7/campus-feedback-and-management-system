@@ -12,6 +12,7 @@ export type AuthActionState = {
   message?: string
   errors?: {
     fullName?: string[]
+    role?: string[]
     department?: string[]
     email?: string[]
     password?: string[]
@@ -25,6 +26,9 @@ const emailPasswordSchema = z.object({
 
 const signupSchema = emailPasswordSchema.extend({
   fullName: z.string().min(2, "Name must be at least 2 characters.").trim(),
+  role: z.enum(["student", "teacher"], {
+    error: "Choose whether this is a student or teacher account.",
+  }),
   department: z.enum(departmentIds, {
     error: "Choose a department.",
   }),
@@ -83,6 +87,7 @@ export async function signup(
 
   const parsed = signupSchema.safeParse({
     fullName: formData.get("fullName"),
+    role: formData.get("role") ?? "student",
     department: formData.get("department"),
     email: formData.get("email"),
     password: formData.get("password"),
@@ -101,7 +106,7 @@ export async function signup(
     options: {
       data: {
         full_name: parsed.data.fullName,
-        role: "student",
+        role: parsed.data.role,
         department_id: parsed.data.department,
       },
     },
@@ -114,7 +119,10 @@ export async function signup(
   }
 
   if (data.user) {
-    await supabase.from("students").upsert({
+    const profileTable =
+      parsed.data.role === "teacher" ? "teachers" : "students"
+
+    await supabase.from(profileTable).upsert({
       id: data.user.id,
       full_name: parsed.data.fullName,
       email: parsed.data.email,
